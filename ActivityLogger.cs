@@ -32,6 +32,7 @@
             }
             catch
             {
+                Console.Clear();
                 Console.SetCursorPosition(0, 4);
                 Console.ForegroundColor = ConsoleColor.DarkRed;
                 Console.WriteLine("             WARNING\r\n");
