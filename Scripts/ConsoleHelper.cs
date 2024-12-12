@@ -8,18 +8,18 @@
 
 
 
-namespace DataImportClient
+namespace DataImportClient.Scripts
 {
     internal class ConsoleHelper
     {
         [DllImport("kernel32.dll", SetLastError = true)]
-        static extern bool SetConsoleMode(IntPtr hConsoleHandle, int mode);
+        static extern bool SetConsoleMode(nint hConsoleHandle, int mode);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        static extern bool GetConsoleMode(IntPtr hConsoleHandle, out int mode);
+        static extern bool GetConsoleMode(nint hConsoleHandle, out int mode);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        static extern IntPtr GetStdHandle(int handle);
+        static extern nint GetStdHandle(int handle);
 
 
 
@@ -27,7 +27,7 @@ namespace DataImportClient
         {
             try
             {
-                IntPtr consoleHandle = GetStdHandle(-11);
+                nint consoleHandle = GetStdHandle(-11);
 
                 if (GetConsoleMode(consoleHandle, out int currentConsoleMode))
                 {

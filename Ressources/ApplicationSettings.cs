@@ -1,4 +1,4 @@
-﻿namespace DataImportClient
+﻿namespace DataImportClient.Ressources
 {
     internal class ApplicationSettings
     {

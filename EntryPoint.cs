@@ -1,4 +1,11 @@
-﻿namespace DataImportClient
+﻿using DataImportClient.Scripts;
+using DataImportClient.Ressources;
+
+
+
+
+
+namespace DataImportClient
 {
     internal class EntryPoint
     {
