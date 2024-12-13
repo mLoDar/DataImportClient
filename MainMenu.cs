@@ -1,4 +1,5 @@
-﻿using DataImportClient.Scripts;
+﻿using DataImportClient.Modules;
+using DataImportClient.Scripts;
 
 
 
@@ -6,12 +7,32 @@
 
 namespace DataImportClient
 {
+    enum ModuleState
+    {
+        Running = 1,
+        Stopped = 2,
+        Unkown = 3,
+        Error = 4
+    }
+
+
+
     internal class MainMenu
     {
         private const string currentSection = "MainMenu";
 
         private static int _navigationXPosition = 1;
         private static readonly int _countOfMenuOptions = 5;
+
+        private static readonly Weather moduleWeather = new();
+        private static readonly Electricity moduleElectricity = new();
+        private static readonly DistrictHeat moduleDistrictHeat = new();
+        private static readonly Photovoltaic modulePhotovoltaic = new();
+
+        private static string stateWeather = string.Empty;
+        private static string stateElectricity = string.Empty;
+        private static string stateDistrictHeat = string.Empty;
+        private static string statePhotovoltaic = string.Empty;
 
 
 
@@ -26,6 +47,13 @@ namespace DataImportClient
         LabelDrawUi:
 
             Console.SetCursorPosition(0, 4);
+
+            ActivityLogger.Log(currentSection, "Formatting module states.");
+
+            stateWeather = FormatModuleStates(moduleWeather.State, moduleWeather.ErrorCount);
+            stateElectricity = FormatModuleStates(moduleElectricity.State, moduleElectricity.ErrorCount);
+            stateDistrictHeat = FormatModuleStates(moduleDistrictHeat.State, moduleDistrictHeat.ErrorCount);
+            statePhotovoltaic = FormatModuleStates(modulePhotovoltaic.State, modulePhotovoltaic.ErrorCount);
 
 
 
@@ -81,19 +109,19 @@ namespace DataImportClient
             switch (_navigationXPosition)
             {
                 case 1:
-                    // TODO: Call main method of the selected module
+                    await moduleWeather.Main();
                     break;
 
                 case 2:
-                    // TODO: Call main method of the selected module
+                    await moduleElectricity.Main();
                     break;
 
                 case 3:
-                    // TODO: Call main method of the selected module
+                    await moduleDistrictHeat.Main();
                     break;
 
                 case 4:
-                    // TODO: Call main method of the selected module
+                    await modulePhotovoltaic.Main();
                     break;
 
                 case 5:
@@ -121,16 +149,41 @@ namespace DataImportClient
             Console.WriteLine("                                                               ");
             Console.WriteLine("             ┌ Modules                           State         ");
             Console.WriteLine("             └────────────────┐                  ┌───┐         ");
-            Console.WriteLine("             {0} Weather                         │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 1 ? ">" : " ")}\u001b[97m]", "  │");
-            Console.WriteLine("             {0} Electricity                     │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 2 ? ">" : " ")}\u001b[97m]", "  │");
-            Console.WriteLine("             {0} DistrictHeat                    │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 3 ? ">" : " ")}\u001b[97m]", "  │");
-            Console.WriteLine("             {0} Photovoltaic                    │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 4 ? ">" : " ")}\u001b[97m]", "  │");
+            Console.WriteLine("             {0} Weather                         │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 1 ? ">" : " ")}\u001b[97m]", stateWeather);
+            Console.WriteLine("             {0} Electricity                     │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 2 ? ">" : " ")}\u001b[97m]", stateElectricity);
+            Console.WriteLine("             {0} DistrictHeat                    │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 3 ? ">" : " ")}\u001b[97m]", stateDistrictHeat);
+            Console.WriteLine("             {0} Photovoltaic                    │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 4 ? ">" : " ")}\u001b[97m]", statePhotovoltaic);
             Console.WriteLine("                                                 └───┘         ");
             Console.WriteLine("                                                               ");
             Console.WriteLine("                                                               ");
             Console.WriteLine("             ┌ Application                                     ");
             Console.WriteLine("             └────────────────┐                                ");
             Console.WriteLine("             {0} Settings                                      ", $"[\u001b[91m{(_navigationXPosition == 5 ? ">" : " ")}\u001b[97m]");
+        }
+
+        private static string FormatModuleStates(ModuleState moduleState, int errorCount)
+        {
+            string formattedState = "\u001b[96m?\u001b[97m │ \u001b[96mUnknown\u001b[97m";
+
+            switch (moduleState)
+            {
+                case ModuleState.Running:
+                    formattedState = "\x1B[92m√\x1B[97m │ \u001b[92mRunning\u001b[97m";
+                    break;
+
+                case ModuleState.Stopped:
+                    formattedState = "\x1B[93mo\x1B[97m │ \u001b[93mStopped\u001b[97m";
+                    break;
+
+                case ModuleState.Error:
+                    formattedState = $"\x1B[91mx\x1B[97m │ \u001b[91m{errorCount} {(errorCount > 1 ? "Errors" : "Error")} \u001b[97m";
+                    break;
+
+                default:
+                    break;
+            }
+
+            return formattedState;
         }
     }
 }
