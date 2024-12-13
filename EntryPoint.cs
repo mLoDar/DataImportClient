@@ -1,4 +1,6 @@
-﻿using DataImportClient.Scripts;
+﻿using System.Text;
+
+using DataImportClient.Scripts;
 using DataImportClient.Ressources;
 
 
@@ -15,7 +17,7 @@ namespace DataImportClient
 
 
 
-        static void Main()
+        static async Task Main()
         {
             string appVersion = appRuntime.appVersion;
             string appRelease = appRuntime.appRelease;
@@ -53,7 +55,15 @@ namespace DataImportClient
 
 
 
-            // TODO: Forward to main menu
+            Console.CursorVisible = false;
+            Console.Title = "DataImportClient";
+            Console.OutputEncoding = Encoding.UTF8;
+
+
+
+            await MainMenu.Main();
+            
+
 
             ActivityLogger.Log(currentSection, "Shutting down DataImportClient ...");
 
