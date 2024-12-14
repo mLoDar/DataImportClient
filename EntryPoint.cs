@@ -169,10 +169,6 @@ namespace DataImportClient
                             ["sourceFilePath"] = "path/to/source/file.csv",
                             ["dbTableName"] = "tableNameforImport",
                             ["refreshTimeInSeconds"] = "intervalInWhichTheSourceDataArrives"
-                        },
-                        new JObject()["sql"] = new JObject()
-                        {
-                            ["connectionString"] = "theConnectionStringForTheImportDatabase"
                         }
                     ];
 
