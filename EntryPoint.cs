@@ -13,31 +13,31 @@ namespace DataImportClient
 {
     internal class EntryPoint
     {
-        private const string currentSection = "EntryPoint";
+        private const string _currentSection = "EntryPoint";
 
-        private static readonly ApplicationSettings.Paths appPaths = new();
-        private static readonly ApplicationSettings.Runtime appRuntime = new();
+        private static readonly ApplicationSettings.Paths _appPaths = new();
+        private static readonly ApplicationSettings.Runtime _appRuntime = new();
         
 
 
         static async Task Main()
         {
-            string appVersion = appRuntime.appVersion;
-            string appRelease = appRuntime.appRelease;
+            string appVersion = _appRuntime.appVersion;
+            string appRelease = _appRuntime.appRelease;
 
-            ActivityLogger.Log(currentSection, string.Empty, true);
-            ActivityLogger.Log(currentSection, "Starting DataImportClient (C) Made in Austria");
-            ActivityLogger.Log(currentSection, $"Version '{appVersion}' | Release '{appRelease}'");
+            ActivityLogger.Log(_currentSection, string.Empty, true);
+            ActivityLogger.Log(_currentSection, "Starting DataImportClient (C) Made in Austria");
+            ActivityLogger.Log(_currentSection, $"Version '{appVersion}' | Release '{appRelease}'");
 
 
 
-            ActivityLogger.Log(currentSection, "Trying to enable support for ANSI escape sequence.");
+            ActivityLogger.Log(_currentSection, "Trying to enable support for ANSI escape sequence.");
             (bool ansiSupportEnabled, Exception occuredError) = ConsoleHelper.EnableAnsiSupport();
 
             if (ansiSupportEnabled == false)
             {
-                ActivityLogger.Log(currentSection, "[ERROR] Failed to enable ANSI support.");
-                ActivityLogger.Log(currentSection, occuredError.Message, true);
+                ActivityLogger.Log(_currentSection, "[ERROR] Failed to enable ANSI support.");
+                ActivityLogger.Log(_currentSection, occuredError.Message, true);
 
                 Console.SetCursorPosition(0, 4);
                 Console.ForegroundColor = ConsoleColor.DarkRed;
@@ -51,18 +51,18 @@ namespace DataImportClient
             }
             else
             {
-                ActivityLogger.Log(currentSection, "Successfully enabled ANSI support!");
+                ActivityLogger.Log(_currentSection, "Successfully enabled ANSI support!");
             }
 
 
 
-            ActivityLogger.Log(currentSection, "Searching for all required folders/files.");
+            ActivityLogger.Log(_currentSection, "Searching for all required folders/files.");
             (bool successfullyCreated, occuredError) = await CreateDiskFolderStructure();
 
             if (successfullyCreated == false)
             {
-                ActivityLogger.Log(currentSection, "[ERROR] Failed to create required folder/file structure.");
-                ActivityLogger.Log(currentSection, occuredError.Message, true);
+                ActivityLogger.Log(_currentSection, "[ERROR] Failed to create required folder/file structure.");
+                ActivityLogger.Log(_currentSection, occuredError.Message, true);
 
                 Console.SetCursorPosition(0, 4);
                 Console.ForegroundColor = ConsoleColor.DarkRed;
@@ -77,7 +77,7 @@ namespace DataImportClient
                 Environment.Exit(0);
             }
 
-            ActivityLogger.Log(currentSection, "All required folders/files exist at the correct path!");
+            ActivityLogger.Log(_currentSection, "All required folders/files exist at the correct path!");
 
 
 
@@ -91,27 +91,27 @@ namespace DataImportClient
             
 
 
-            ActivityLogger.Log(currentSection, "Shutting down DataImportClient ...");
+            ActivityLogger.Log(_currentSection, "Shutting down DataImportClient ...");
 
             Environment.Exit(0);
         }
 
         private static async Task<(bool successfullyCreated, Exception occuredError)> CreateDiskFolderStructure()
         {
-            string appDataFolder = appPaths.appDataFolder;
-            string configurationFile = appPaths.configurationFile;
+            string appDataFolder = _appPaths.appDataFolder;
+            string configurationFile = _appPaths.configurationFile;
 
             List<string> foldersToCreate =
             [
-                appPaths.modulesFolder,
-                appPaths.weatherFolder,
-                appPaths.weatherFaultyFilesFolder,
-                appPaths.electricityFolder,
-                appPaths.electricityFaultyFilesFolder,
-                appPaths.districtHeatFolder,
-                appPaths.districtHeatFaultyFilesFolder,
-                appPaths.photovoltaicFolder,
-                appPaths.photovoltaicFaultyFilesFolder
+                _appPaths.modulesFolder,
+                _appPaths.weatherFolder,
+                _appPaths.weatherFaultyFilesFolder,
+                _appPaths.electricityFolder,
+                _appPaths.electricityFaultyFilesFolder,
+                _appPaths.districtHeatFolder,
+                _appPaths.districtHeatFaultyFilesFolder,
+                _appPaths.photovoltaicFolder,
+                _appPaths.photovoltaicFaultyFilesFolder
             ];
 
 
@@ -124,7 +124,7 @@ namespace DataImportClient
                     {
                         Directory.CreateDirectory(folder);
 
-                        ActivityLogger.Log(currentSection, $"Created folder: {folder.Replace(appDataFolder, ".")}");
+                        ActivityLogger.Log(_currentSection, $"Created folder: {folder.Replace(appDataFolder, ".")}");
                     }
 
                     await Task.Delay(50);
@@ -183,7 +183,7 @@ namespace DataImportClient
 
                     await File.WriteAllTextAsync(configurationFile, appConfiguration.ToString());
 
-                    ActivityLogger.Log(currentSection, $"Created file: {configurationFile.Replace(appDataFolder, ".")}");
+                    ActivityLogger.Log(_currentSection, $"Created file: {configurationFile.Replace(appDataFolder, ".")}");
                 }
             }
             catch (Exception exception)

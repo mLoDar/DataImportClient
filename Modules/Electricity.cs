@@ -8,7 +8,7 @@ namespace DataImportClient.Modules
 {
     internal class Electricity
     {
-        private const string currentSection = "ModuleElectricity";
+        private const string _currentSection = "ModuleElectricity";
         
         private ModuleState _moduleState;
         private int _errorCount;
@@ -35,7 +35,7 @@ namespace DataImportClient.Modules
 
         internal async Task Main()
         {
-            ActivityLogger.Log(currentSection, "Entering module 'Electricity'.");
+            ActivityLogger.Log(_currentSection, "Entering module 'Electricity'.");
         }
     }
 }

@@ -19,26 +19,26 @@ namespace DataImportClient
 
     internal class MainMenu
     {
-        private const string currentSection = "MainMenu";
+        private const string _currentSection = "MainMenu";
 
         private static int _navigationXPosition = 1;
         private static readonly int _countOfMenuOptions = 5;
 
-        private static readonly Weather moduleWeather = new();
-        private static readonly Electricity moduleElectricity = new();
-        private static readonly DistrictHeat moduleDistrictHeat = new();
-        private static readonly Photovoltaic modulePhotovoltaic = new();
+        private static readonly Weather _moduleWeather = new();
+        private static readonly Electricity _moduleElectricity = new();
+        private static readonly DistrictHeat _moduleDistrictHeat = new();
+        private static readonly Photovoltaic _modulePhotovoltaic = new();
 
-        private static string stateWeather = string.Empty;
-        private static string stateElectricity = string.Empty;
-        private static string stateDistrictHeat = string.Empty;
-        private static string statePhotovoltaic = string.Empty;
+        private static string _stateWeather = string.Empty;
+        private static string _stateElectricity = string.Empty;
+        private static string _stateDistrictHeat = string.Empty;
+        private static string _statePhotovoltaic = string.Empty;
 
 
 
         internal static async Task Main()
         {
-            ActivityLogger.Log(currentSection, "Entering main menu.");
+            ActivityLogger.Log(_currentSection, "Entering main menu.");
 
 
 
@@ -48,20 +48,20 @@ namespace DataImportClient
 
             Console.SetCursorPosition(0, 4);
 
-            ActivityLogger.Log(currentSection, "Formatting module states.");
+            ActivityLogger.Log(_currentSection, "Formatting module states.");
 
-            stateWeather = FormatModuleStates(moduleWeather.State, moduleWeather.ErrorCount);
-            stateElectricity = FormatModuleStates(moduleElectricity.State, moduleElectricity.ErrorCount);
-            stateDistrictHeat = FormatModuleStates(moduleDistrictHeat.State, moduleDistrictHeat.ErrorCount);
-            statePhotovoltaic = FormatModuleStates(modulePhotovoltaic.State, modulePhotovoltaic.ErrorCount);
+            _stateWeather = FormatModuleStates(_moduleWeather.State, _moduleWeather.ErrorCount);
+            _stateElectricity = FormatModuleStates(_moduleElectricity.State, _moduleElectricity.ErrorCount);
+            _stateDistrictHeat = FormatModuleStates(_moduleDistrictHeat.State, _moduleDistrictHeat.ErrorCount);
+            _statePhotovoltaic = FormatModuleStates(_modulePhotovoltaic.State, _modulePhotovoltaic.ErrorCount);
 
 
 
-            ActivityLogger.Log(currentSection, "Starting to draw the main menu.");
+            ActivityLogger.Log(_currentSection, "Starting to draw the main menu.");
 
             DisplayMenu();
 
-            ActivityLogger.Log(currentSection, "Displayed main menu, waiting for key input.");
+            ActivityLogger.Log(_currentSection, "Displayed main menu, waiting for key input.");
 
 
 
@@ -73,7 +73,7 @@ namespace DataImportClient
                     if (_navigationXPosition + 1 <= _countOfMenuOptions)
                     {
                         _navigationXPosition += 1;
-                        ActivityLogger.Log(currentSection, $"Changed menu option from '{_navigationXPosition - 1}' to '{_navigationXPosition}'.");
+                        ActivityLogger.Log(_currentSection, $"Changed menu option from '{_navigationXPosition - 1}' to '{_navigationXPosition}'.");
                     }
                     break;
 
@@ -81,7 +81,7 @@ namespace DataImportClient
                     if (_navigationXPosition - 1 >= 1)
                     {
                         _navigationXPosition -= 1;
-                        ActivityLogger.Log(currentSection, $"Changed menu option from '{_navigationXPosition + 1}' to '{_navigationXPosition}'.");
+                        ActivityLogger.Log(_currentSection, $"Changed menu option from '{_navigationXPosition + 1}' to '{_navigationXPosition}'.");
                     }
                     break;
 
@@ -104,24 +104,24 @@ namespace DataImportClient
 
 
 
-            ActivityLogger.Log(currentSection, $"Switching to module '{_navigationXPosition}'.");
+            ActivityLogger.Log(_currentSection, $"Switching to module '{_navigationXPosition}'.");
 
             switch (_navigationXPosition)
             {
                 case 1:
-                    await moduleWeather.Main();
+                    await _moduleWeather.Main();
                     break;
 
                 case 2:
-                    await moduleElectricity.Main();
+                    await _moduleElectricity.Main();
                     break;
 
                 case 3:
-                    await moduleDistrictHeat.Main();
+                    await _moduleDistrictHeat.Main();
                     break;
 
                 case 4:
-                    await modulePhotovoltaic.Main();
+                    await _modulePhotovoltaic.Main();
                     break;
 
                 case 5:
@@ -131,7 +131,7 @@ namespace DataImportClient
 
 
 
-            ActivityLogger.Log(currentSection, $"Redrawing main menu after returning from selected module.");
+            ActivityLogger.Log(_currentSection, $"Redrawing main menu after returning from selected module.");
 
             Console.Clear();
             goto LabelDrawUi;
@@ -149,10 +149,10 @@ namespace DataImportClient
             Console.WriteLine("                                                               ");
             Console.WriteLine("             ┌ Modules                           State         ");
             Console.WriteLine("             └────────────────┐                  ┌───┐         ");
-            Console.WriteLine("             {0} Weather                         │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 1 ? ">" : " ")}\u001b[97m]", stateWeather);
-            Console.WriteLine("             {0} Electricity                     │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 2 ? ">" : " ")}\u001b[97m]", stateElectricity);
-            Console.WriteLine("             {0} DistrictHeat                    │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 3 ? ">" : " ")}\u001b[97m]", stateDistrictHeat);
-            Console.WriteLine("             {0} Photovoltaic                    │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 4 ? ">" : " ")}\u001b[97m]", statePhotovoltaic);
+            Console.WriteLine("             {0} Weather                         │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 1 ? ">" : " ")}\u001b[97m]", _stateWeather);
+            Console.WriteLine("             {0} Electricity                     │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 2 ? ">" : " ")}\u001b[97m]", _stateElectricity);
+            Console.WriteLine("             {0} DistrictHeat                    │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 3 ? ">" : " ")}\u001b[97m]", _stateDistrictHeat);
+            Console.WriteLine("             {0} Photovoltaic                    │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 4 ? ">" : " ")}\u001b[97m]", _statePhotovoltaic);
             Console.WriteLine("                                                 └───┘         ");
             Console.WriteLine("                                                               ");
             Console.WriteLine("                                                               ");

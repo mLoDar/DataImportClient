@@ -8,8 +8,8 @@ namespace DataImportClient.Scripts
 {
     internal class ActivityLogger
     {
-        private static readonly ApplicationSettings.Paths appPaths = new();
-        private static readonly ApplicationSettings.Runtime appRuntime = new();
+        private static readonly ApplicationSettings.Paths _appPaths = new();
+        private static readonly ApplicationSettings.Runtime _appRuntime = new();
 
 
 
@@ -17,9 +17,9 @@ namespace DataImportClient.Scripts
         {
             try
             {
-                string clientFolder = appPaths.clientFolder;
-                string logsFolder = appPaths.logsFolder;
-                string logFile = appPaths.logFile;
+                string clientFolder = _appPaths.clientFolder;
+                string logsFolder = _appPaths.logsFolder;
+                string logFile = _appPaths.logFile;
 
                 if (Directory.Exists(clientFolder) == false)
                 {
@@ -31,7 +31,7 @@ namespace DataImportClient.Scripts
                     Directory.CreateDirectory(logsFolder);
                 }
 
-                string prefix = $"[{DateTime.Now}] - [ProcessId: {appRuntime.processId}] - [Section: {currentSection}] - ";
+                string prefix = $"[{DateTime.Now}] - [ProcessId: {_appRuntime.processId}] - [Section: {currentSection}] - ";
 
                 if (removePrefix == true)
                 {
@@ -48,7 +48,7 @@ namespace DataImportClient.Scripts
                 Console.ForegroundColor = ConsoleColor.DarkRed;
                 Console.WriteLine("             WARNING\r\n");
                 Console.ForegroundColor = ConsoleColor.White;
-                Console.WriteLine("             Failed to create crucial directorys/files.");
+                Console.WriteLine("             Failed to create crucial folders/files.");
                 Console.WriteLine("             Please read the manual on how to fix this error!");
                 Thread.Sleep(10000);
 

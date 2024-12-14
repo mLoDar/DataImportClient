@@ -8,7 +8,7 @@ namespace DataImportClient.Modules
 {
     internal class DistrictHeat
     {
-        private const string currentSection = "ModuleDisctrictHeat";
+        private const string _currentSection = "ModuleDisctrictHeat";
         
         private ModuleState _moduleState;
         private int _errorCount;
@@ -35,7 +35,7 @@ namespace DataImportClient.Modules
 
         internal async Task Main()
         {
-            ActivityLogger.Log(currentSection, "Entering module 'DisctrictHeat'.");
+            ActivityLogger.Log(_currentSection, "Entering module 'DisctrictHeat'.");
         }
     }
 }
