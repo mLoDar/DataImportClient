@@ -148,9 +148,9 @@ namespace DataImportClient
                     [
                         new JObject()["weather"] = new JObject()
                         {
-                            ["sourceFilePath"] = "path/to/source/file.csv",
-                            ["dbTableName"] = "tableNameforImport",
-                            ["refreshTimeInSeconds"] = "intervalInWhichTheSourceDataArrives"
+                            ["apiUrl"] = "https://urlTo.TheAPI.provider",
+                            ["apiKey"] = "tableNameforImport",
+                            ["apiInterval"] = "howLongToWaitBeforeCallingApi"
                         },
                         new JObject()["electricity"] = new JObject()
                         {
