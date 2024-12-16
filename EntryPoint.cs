@@ -144,33 +144,33 @@ namespace DataImportClient
                 {
                     JObject appConfiguration = [];
 
-                    JArray modules =
-                    [
-                        new JObject()["weather"] = new JObject()
+                    JObject modules = new()
+                    {
+                        ["weather"] = new JObject()
                         {
                             ["apiUrl"] = "https://urlTo.TheAPI.provider",
                             ["apiKey"] = "tableNameforImport",
                             ["apiInterval"] = "howLongToWaitBeforeCallingApi"
                         },
-                        new JObject()["electricity"] = new JObject()
+                        ["electricity"] = new JObject()
                         {
                             ["sourceFilePath"] = "path/to/source/file.csv",
                             ["dbTableName"] = "tableNameforImport",
                             ["refreshTimeInSeconds"] = "intervalInWhichTheSourceDataArrives"
                         },
-                        new JObject()["districtHeat"] = new JObject()
+                        ["districtHeat"] = new JObject()
                         {
                             ["sourceFilePath"] = "path/to/source/file.csv",
                             ["dbTableName"] = "tableNameforImport",
                             ["refreshTimeInSeconds"] = "intervalInWhichTheSourceDataArrives"
                         },
-                        new JObject()["photovoltaic"] = new JObject()
+                        ["photovoltaic"] = new JObject()
                         {
                             ["sourceFilePath"] = "path/to/source/file.csv",
                             ["dbTableName"] = "tableNameforImport",
                             ["refreshTimeInSeconds"] = "intervalInWhichTheSourceDataArrives"
                         }
-                    ];
+                    };
 
                     appConfiguration["modules"] = modules;
                     appConfiguration["sql"] = new JObject()
