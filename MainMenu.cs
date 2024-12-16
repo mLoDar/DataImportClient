@@ -34,11 +34,17 @@ namespace DataImportClient
         private static string _stateDistrictHeat = string.Empty;
         private static string _statePhotovoltaic = string.Empty;
 
+        private static bool _someModuleStateChanged = false;
+
+        private static ConsoleKey _pressedKey = ConsoleKey.None;
+
 
 
         internal static async Task Main()
         {
             ActivityLogger.Log(_currentSection, "Entering main menu.");
+
+            _moduleWeather.StateChanged += ModuleStateChanged;
 
 
 
@@ -49,6 +55,8 @@ namespace DataImportClient
             Console.SetCursorPosition(0, 4);
 
             ActivityLogger.Log(_currentSection, "Formatting module states.");
+
+
 
             _stateWeather = FormatModuleStates(_moduleWeather.State, _moduleWeather.ErrorCount);
             _stateElectricity = FormatModuleStates(_moduleElectricity.State, _moduleElectricity.ErrorCount);
@@ -65,9 +73,25 @@ namespace DataImportClient
 
 
 
-            ConsoleKey pressedKey = Console.ReadKey(true).Key;
+            CancellationTokenSource cancellationTokenSource = new();
+            CancellationToken cancellationToken = cancellationTokenSource.Token;
 
-            switch (pressedKey)
+            Task keyPressListener = ListenForKeyPress(cancellationToken);
+            Task moduelChangeListener = ListenForModuleChange(cancellationToken);
+
+            await Task.WhenAny(keyPressListener, moduelChangeListener);
+
+            cancellationTokenSource.Cancel();
+
+
+            if (_pressedKey == ConsoleKey.None)
+            {
+                goto LabelDrawUi;
+            }
+
+
+
+            switch (_pressedKey)
             {
                 case ConsoleKey.DownArrow:
                     if (_navigationXPosition + 1 <= _countOfMenuOptions)
@@ -97,7 +121,7 @@ namespace DataImportClient
 
 
 
-            if (pressedKey != ConsoleKey.Enter)
+            if (_pressedKey != ConsoleKey.Enter)
             {
                 goto LabelDrawUi;
             }
@@ -184,6 +208,42 @@ namespace DataImportClient
             }
 
             return formattedState;
+        }
+
+        private static async Task ListenForKeyPress(CancellationToken cancellationToken)
+        {
+            while (_someModuleStateChanged == false)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                if (Console.KeyAvailable == false)
+                {
+                    await Task.Delay(50, cancellationToken);
+                    continue;
+                }
+
+                _pressedKey = Console.ReadKey(true).Key;
+
+                return;
+            }
+        }
+
+        private static async Task ListenForModuleChange(CancellationToken cancellationToken)
+        {
+            while (_someModuleStateChanged == false)
+            {
+                await Task.Delay(1000);
+            }
+
+            _someModuleStateChanged = false;
+        }
+
+        private static void ModuleStateChanged(object sender, EventArgs e)
+        {
+            _someModuleStateChanged = true;
         }
     }
 }

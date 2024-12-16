@@ -32,7 +32,26 @@ namespace DataImportClient.Modules
         internal ModuleState State
         {
             get => _moduleState;
+            set
+            {
+                if (_moduleState != value)
+                {
+                    ActivityLogger.Log(_currentSection, $"Module state changed from '{_moduleState}' to '{value}'.");
+                    _moduleState = value;
+
+                    OnStateChange();
+                }
+            }
         }
+
+        internal event EventHandler StateChanged;
+
+        protected virtual void OnStateChange()
+        {
+            StateChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+
 
         internal int ErrorCount
         {
@@ -67,9 +86,15 @@ namespace DataImportClient.Modules
 
 
 
+            ActivityLogger.Log(_currentSection, "Formatting menu variables.");
+
             FormatMenuVariables();
 
+            ActivityLogger.Log(_currentSection, "Starting to draw the main menu.");
+
             DisplayMenu();
+
+            ActivityLogger.Log(_currentSection, "Displayed main menu, waiting for key input.");
 
 
 
