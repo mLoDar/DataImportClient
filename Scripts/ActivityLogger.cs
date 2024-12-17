@@ -19,7 +19,7 @@ namespace DataImportClient.Scripts
             {
                 string clientFolder = _appPaths.clientFolder;
                 string logsFolder = _appPaths.logsFolder;
-                string logFile = _appPaths.logFile;
+                string logFileName = _appPaths.logFileName;
 
                 if (Directory.Exists(clientFolder) == false)
                 {
@@ -31,6 +31,7 @@ namespace DataImportClient.Scripts
                     Directory.CreateDirectory(logsFolder);
                 }
 
+                string logFile = Path.Combine(logsFolder, logFileName);
                 string prefix = $"[{DateTime.Now}] - [ProcessId: {_appRuntime.processId}] - [Section: {currentSection}] - ";
 
                 if (removePrefix == true)

@@ -41,5 +41,18 @@ namespace DataImportClient.Scripts
 
             return (true, new Exception());
         }
+
+        internal static bool ValidDecimalValues(string[] values)
+        {
+            foreach (string value in values)
+            {
+                if (decimal.TryParse(value, out decimal _) == false)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     }
 }

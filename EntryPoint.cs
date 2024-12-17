@@ -104,14 +104,21 @@ namespace DataImportClient
             List<string> foldersToCreate =
             [
                 _appPaths.modulesFolder,
+
                 _appPaths.weatherFolder,
-                _appPaths.weatherFaultyFilesFolder,
+                _appPaths.weatherImportWorkerLogs,
+
                 _appPaths.electricityFolder,
                 _appPaths.electricityFaultyFilesFolder,
+                _appPaths.electricityImportWorkerLogs,
+
                 _appPaths.districtHeatFolder,
                 _appPaths.districtHeatFaultyFilesFolder,
+                _appPaths.districtHeatImportWorkerLogs,
+
                 _appPaths.photovoltaicFolder,
-                _appPaths.photovoltaicFaultyFilesFolder
+                _appPaths.photovoltaicFaultyFilesFolder,
+                _appPaths.photovoltaicImportWorkerLogs,
             ];
 
 
@@ -149,8 +156,9 @@ namespace DataImportClient
                         ["weather"] = new JObject()
                         {
                             ["apiUrl"] = "https://urlTo.TheAPI.provider",
-                            ["apiKey"] = "tableNameforImport",
-                            ["apiInterval"] = "howLongToWaitBeforeCallingApi"
+                            ["apiKey"] = "apiKeyFromTheProvide",
+                            ["apiCity"] = "cityFromWhichToFetch",
+                            ["apiIntervalSeconds"] = "howLongToWaitBeforeCallingApi"
                         },
                         ["electricity"] = new JObject()
                         {

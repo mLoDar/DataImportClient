@@ -17,59 +17,56 @@
             internal readonly string appDataFolder;
             internal readonly string clientFolder;
             internal readonly string logsFolder;
-            internal readonly string logFile;
+            internal readonly string logFileName;
             internal readonly string configurationFile;
 
             internal readonly string errorCacheFile;
             internal readonly string modulesFolder;
 
             internal readonly string weatherFolder;
-            internal readonly string weatherLogFile;
-            internal readonly string weatherFaultyFilesFolder;
-
+            internal readonly string weatherImportWorkerLogs;
+            
             internal readonly string electricityFolder;
-            internal readonly string electricityLogFile;
+            internal readonly string electricityImportWorkerLogs;
             internal readonly string electricityFaultyFilesFolder;
 
             internal readonly string districtHeatFolder;
-            internal readonly string districtHeatLogFile;
+            internal readonly string districtHeatImportWorkerLogs;
             internal readonly string districtHeatFaultyFilesFolder;
 
             internal readonly string photovoltaicFolder;
-            internal readonly string photovoltaicLogFile;
+            internal readonly string photovoltaicImportWorkerLogs;
             internal readonly string photovoltaicFaultyFilesFolder;
-
+            
 
 
             internal Paths()
             {
                 DateTime now = DateTime.Now;
-                string logFilename = $"runtime-{_runtime.appVersion}-{now:dd-MM-yyyy}.log";
+                logFileName = $"runtime-{_runtime.appVersion}-{now:dd-MM-yyyy}.log";
 
                 appDataFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 clientFolder = Path.Combine(appDataFolder, "DataImportClient");
                 logsFolder = Path.Combine(clientFolder, "runtimeLogs");
-                logFile = Path.Combine(logsFolder, logFilename);
                 configurationFile = Path.Combine(clientFolder, "appConfiguration.json");
 
                 errorCacheFile = Path.Combine(clientFolder, "errorCache.log");
                 modulesFolder = Path.Combine(clientFolder, "Modules");
 
                 weatherFolder = Path.Combine(modulesFolder, "Weather");
-                weatherLogFile = Path.Combine(weatherFolder, logFilename);
-                weatherFaultyFilesFolder = Path.Combine(weatherFolder, "FaultyDataFiles");
+                weatherImportWorkerLogs = Path.Combine(weatherFolder, "ImportWorkerLogs");
 
                 electricityFolder = Path.Combine(modulesFolder, "Electricity");
-                electricityLogFile = Path.Combine(electricityFolder, logFilename);
                 electricityFaultyFilesFolder = Path.Combine(electricityFolder, "FaultyDataFiles");
+                electricityImportWorkerLogs = Path.Combine(electricityFolder, "ImportWorkerLogs");
 
                 districtHeatFolder = Path.Combine(modulesFolder, "DistrictHeat");
-                districtHeatLogFile = Path.Combine(districtHeatFolder, logFilename);
                 districtHeatFaultyFilesFolder = Path.Combine(districtHeatFolder, "FaultyDataFiles");
+                districtHeatImportWorkerLogs = Path.Combine(districtHeatFolder, "ImportWorkerLogs");
 
                 photovoltaicFolder = Path.Combine(modulesFolder, "Photovoltaic");
-                photovoltaicLogFile = Path.Combine(photovoltaicFolder, logFilename);
                 photovoltaicFaultyFilesFolder = Path.Combine(photovoltaicFolder, "FaultyDataFiles");
+                photovoltaicImportWorkerLogs = Path.Combine(photovoltaicFolder, "ImportWorkerLogs");
             }
         }
     }

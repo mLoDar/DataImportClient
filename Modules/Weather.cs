@@ -2,6 +2,9 @@
 
 using DataImportClient.Scripts;
 
+using Newtonsoft.Json.Linq;
+using Microsoft.Data.SqlClient;
+
 
 
 
@@ -26,6 +29,9 @@ namespace DataImportClient.Modules
         private static string _formattedErrorCount = string.Empty;
         private static string _formattedServiceRunning = string.Empty;
         private static string _formattedLastLogFileEntry = string.Empty;
+
+        private static Task _importWorker = new(() => {});
+        private static CancellationTokenSource _cancellationTokenSource = new();
 
 
 
@@ -68,6 +74,13 @@ namespace DataImportClient.Modules
 
             _dateOfLastImport = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
             _dateOfLastLogFileEntry = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
+
+
+
+            _cancellationTokenSource = new();
+            CancellationToken cancellationToken = _cancellationTokenSource.Token;
+
+            _importWorker = Task.Run(() => ImportApiData(cancellationToken));
         }
 
 
@@ -232,6 +245,270 @@ namespace DataImportClient.Modules
             {
                 _formattedLastLogFileEntry = $"\u001b[91mx\u001b[97m │ Updated at '\u001b[91m{_dateOfLastLogFileEntry}\u001b[97m'";
             }
+        }
+
+        private async Task ImportApiData(CancellationToken cancellationToken)
+        {
+            ImportLogger.Log(_currentSection, "Starting import worker for the current module.");
+            int errorTimoutInMilliseconds = 5 * 30 * 1000;
+
+
+
+            while (true)
+            {
+                ImportLogger.Log(_currentSection, "Fetching settings from configuration file.");
+
+                (string[] apiConfiguration, string sqlConnectionString, Exception? occuredError) = await GetConfigurationValues();
+
+                if (occuredError != null)
+                {
+                    ImportLogger.Log(_currentSection, "[ERROR] - An error has occured while fetching the settings");
+                    ImportLogger.Log(_currentSection, occuredError.Message, true);
+
+                    State = ModuleState.Error;
+                    _errorCount++;
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
+
+                ImportLogger.Log(_currentSection, "Successfully fetched settings.");
+
+
+
+                string apiUrl = apiConfiguration[0];
+                string apiKey = apiConfiguration[1];
+                string apiCity = apiConfiguration[2];
+                string apiIntervalSeconds = apiConfiguration[3];
+
+                apiUrl += $"?q={apiCity}&appid={apiKey}&mode=json&units=metric";
+                int apiSleepTimer = Convert.ToInt32(apiIntervalSeconds) * 1000;
+
+
+
+                ImportLogger.Log(_currentSection, "Contacting the API and requesting a data set.");
+
+                (string dataWindSpeed, string dataTemperature, occuredError) = await FetchApiData(apiUrl, cancellationToken);
+
+                if (occuredError != null)
+                {
+                    ImportLogger.Log(_currentSection, "[ERROR] - An error has occured while inserting the data into the database.");
+                    ImportLogger.Log(_currentSection, occuredError.Message, true);
+
+                    State = ModuleState.Error;
+                    _errorCount++;
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
+
+                ImportLogger.Log(_currentSection, "Successfully fetched the data set from the API.");
+
+
+
+                ImportLogger.Log(_currentSection, "Inserting the fetched data set into the database.");
+
+                occuredError = await InsertDataIntoDatabase(sqlConnectionString, dataWindSpeed, dataTemperature, cancellationToken);
+
+                if (occuredError != null)
+                {
+                    ImportLogger.Log(_currentSection, "[ERROR] - An error has occured while inserting the data into the database.");
+                    ImportLogger.Log(_currentSection, occuredError.Message, true);
+
+                    State = ModuleState.Error;
+                    _errorCount++;
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
+
+                ImportLogger.Log(_currentSection, "Successfully inserted the API data into the database.");
+
+
+
+                ImportLogger.Log(_currentSection, $"Going to sleep for {apiSleepTimer / 1000} seconds.");
+                await Task.Delay(apiSleepTimer, cancellationToken);
+            }
+        }
+
+        private static async Task<(string[] apiConfiguration, string sqlConnectionString, Exception? occuredError)> GetConfigurationValues()
+        {
+            JObject savedConfiguration;
+
+            try
+            {
+                savedConfiguration = await ConfigurationHelper.LoadConfiguration();
+
+                if (savedConfiguration["error"] != null)
+                {
+                    throw new Exception($"Saved configuration file contains errors. Error: {savedConfiguration["error"]}");
+                }
+            }
+            catch (Exception exception)
+            {
+                return (Array.Empty<string>(), string.Empty, exception);
+            }
+
+
+
+            JObject modules;
+            JObject weatherModule;
+            JObject sqlData;
+
+            try
+            {
+                modules = savedConfiguration["modules"] as JObject ?? [];
+
+                if (modules == null || modules == new JObject())
+                {
+                    throw new Exception("Configuration file does not contain a 'modules' object.");
+                }
+
+                weatherModule = modules?["weather"] as JObject ?? [];
+
+                if (weatherModule == null || weatherModule == new JObject())
+                {
+                    throw new Exception("Configuration file does not contain a 'weather' module.");
+                }
+
+                sqlData = savedConfiguration["sql"] as JObject ?? [];
+
+                if (sqlData == null || sqlData == new JObject())
+                {
+                    throw new Exception("Configuration file does not contain a 'sql' object.");
+                }
+            }
+            catch (Exception exception)
+            {
+                return (Array.Empty<string>(), string.Empty, exception);
+            }
+
+
+
+            string apiUrl;
+            string apiKey;
+            string apiCity;
+            string apiIntervalSeconds;
+            string sqlConnectionString;
+
+            try
+            {
+                apiUrl = weatherModule?["apiUrl"]?.ToString() ?? string.Empty;
+                apiKey = weatherModule?["apiKey"]?.ToString() ?? string.Empty;
+                apiCity = weatherModule?["apiCity"]?.ToString() ?? string.Empty;
+                apiIntervalSeconds = weatherModule?["apiIntervalSeconds"]?.ToString() ?? string.Empty;
+                sqlConnectionString = sqlData?["connectionString"]?.ToString() ?? string.Empty;
+
+                if (new string[] { apiUrl, apiKey, apiIntervalSeconds, sqlConnectionString }.Contains(null))
+                {
+                    throw new Exception("One or mulitple API or SQL values are null!");
+                }
+
+                if (new string[] { apiUrl, apiKey, apiIntervalSeconds, sqlConnectionString }.Contains(string.Empty))
+                {
+                    throw new Exception("One or mulitple API or SQL values are an empty string!");
+                }
+            }
+            catch (Exception exception)
+            {
+                return (Array.Empty<string>(), string.Empty, exception);
+            }
+
+
+
+            if (int.TryParse(apiIntervalSeconds, out int _) == false)
+            {
+                return (Array.Empty<string>(), string.Empty, new Exception("Failed to parse the provided api interval to a number."));
+            }
+
+
+
+            string[] apiConfiguration =
+            {
+                apiUrl,
+                apiKey,
+                apiCity,
+                apiIntervalSeconds,
+            };
+
+            return (apiConfiguration, sqlConnectionString, null);
+        }
+
+        private static async Task<(string dataWindSpeed, string dataTemperature, Exception? occuredError)> FetchApiData(string apiUrl, CancellationToken cancellationToken)
+        {
+            JObject apiData = [];
+
+            try
+            {
+                using HttpClient client = new();
+
+                string apiJsonData = await client.GetStringAsync(apiUrl, cancellationToken);
+
+                apiData = JObject.Parse(apiJsonData);
+            }
+            catch (Exception exception)
+            {
+                return (string.Empty, string.Empty, exception);
+            }
+
+
+
+            if (apiData == null || apiData == new JObject())
+            {
+                return (string.Empty, string.Empty, new Exception("The fetched data provided by the API is 'null'."));
+            }
+
+            ImportLogger.Log(_currentSection, "Successfully received the requested data from the API.");
+
+
+
+            string dataWindSpeed = apiData?["wind"]?["speed"]?.ToString() ?? string.Empty;
+            string dataTemperature = apiData?["main"]?["temp"]?.ToString() ?? string.Empty;
+
+            bool validApiValues = ConsoleHelper.ValidDecimalValues([dataWindSpeed, dataTemperature]);
+
+            if (string.IsNullOrWhiteSpace(dataWindSpeed) || string.IsNullOrWhiteSpace(dataTemperature) || validApiValues == false)
+            {
+                return (string.Empty, string.Empty, new Exception($"The fetched data contains invalid values. (Wind speed: '{dataWindSpeed}' | Temperature: '{dataTemperature}')"));
+            }
+
+            return (dataWindSpeed, dataTemperature, null);
+        }
+
+        private static async Task<Exception?> InsertDataIntoDatabase(string sqlConnectionString, string dataWindSpeed, string dataTemperature, CancellationToken cancellationToken)
+        {
+            SqlConnection databaseConnection = new(sqlConnectionString);
+
+            try
+            {
+                await databaseConnection.OpenAsync(cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                return exception;
+            }
+
+            ImportLogger.Log(_currentSection, "Successfully established a database connection.");
+
+
+
+            try
+            {
+                string insertDataQuery = "INSERT INTO dbo.weather (windSpeed, temperature) VALUES (@windSpeed, @temperature);";
+                
+                using SqlCommand insertCommand = new(insertDataQuery, databaseConnection);
+
+                insertCommand.Parameters.AddWithValue("@windSpeed", decimal.Parse(dataWindSpeed));
+                insertCommand.Parameters.AddWithValue("@temperature", decimal.Parse(dataTemperature));
+
+                await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                return exception;
+            }
+
+            return null;
         }
     }
 }
