@@ -191,16 +191,16 @@ namespace DataImportClient
 
             switch (moduleState)
             {
-                case ModuleState.Running:
-                    formattedState = "\x1B[92m√\x1B[97m │ \u001b[92mRunning\u001b[97m";
+                case ModuleState.Error:
+                    formattedState = $"\x1B[91mx\x1B[97m │ \u001b[91m{errorCount} {(errorCount > 1 ? "Errors" : "Error")} \u001b[97m";
                     break;
 
                 case ModuleState.Stopped:
                     formattedState = "\x1B[93mo\x1B[97m │ \u001b[93mStopped\u001b[97m";
                     break;
 
-                case ModuleState.Error:
-                    formattedState = $"\x1B[91mx\x1B[97m │ \u001b[91m{errorCount} {(errorCount > 1 ? "Errors" : "Error")} \u001b[97m";
+                case ModuleState.Running:
+                    formattedState = "\x1B[92m√\x1B[97m │ \u001b[92mRunning\u001b[97m";
                     break;
 
                 default:

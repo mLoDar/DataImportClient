@@ -1,6 +1,8 @@
-﻿using System.Globalization;
+﻿using System.Diagnostics;
+using System.Globalization;
 
 using DataImportClient.Scripts;
+using DataImportClient.Ressources;
 
 using Newtonsoft.Json.Linq;
 using Microsoft.Data.SqlClient;
@@ -19,7 +21,6 @@ namespace DataImportClient.Modules
         private static bool _serviceRunning;
         private static int _errorCount;
 
-
         private static int _navigationXPosition = 1;
         private static readonly int _countOfMenuOptions = 4;
 
@@ -32,6 +33,8 @@ namespace DataImportClient.Modules
 
         private static Task _importWorker = new(() => {});
         private static CancellationTokenSource _cancellationTokenSource = new();
+
+        private static ApplicationSettings.Paths _appPaths = new();
 
 
 
@@ -153,15 +156,43 @@ namespace DataImportClient.Modules
             switch (_navigationXPosition)
             {
                 case 1:
-
+                    try
+                    {
+                        string importWorkerLogsFolder = _appPaths.weatherImportWorkerLogs;
+                        string fileName = _appPaths.logFileName;
+                        string logFile = Path.Combine(importWorkerLogsFolder, fileName);
+                        Process.Start("notepad.exe", logFile);
+                    }
+                    catch (Exception exception)
+                    {
+                        ActivityLogger.Log(_currentSection, "[ERROR] Failed to open the folder for import worker logs of the current module.");
+                        ActivityLogger.Log(_currentSection, exception.Message, true);
+                    }
                     break;
 
                 case 2:
+                    if (_serviceRunning == true)
+                    {
+                        ImportWorkerLog("Stopping active import worker for the current module.");
 
+                        _cancellationTokenSource?.Cancel();
+                        State = ModuleState.Stopped;
+                        _serviceRunning = false;
+                        break;
+                    }
+
+                    _cancellationTokenSource = new();
+
+                    CancellationToken cancellationToken = _cancellationTokenSource.Token;
+                    State = ModuleState.Running;
+                    _serviceRunning = true;
+
+                    _importWorker = Task.Run(() => ImportApiData(cancellationToken));
                     break;
 
                 case 3:
-
+                    State = ModuleState.Running;
+                    _errorCount = 0;
                     break;
 
                 case 4:
@@ -249,21 +280,21 @@ namespace DataImportClient.Modules
 
         private async Task ImportApiData(CancellationToken cancellationToken)
         {
-            ImportLogger.Log(_currentSection, "Starting import worker for the current module.");
+            ImportWorkerLog("Starting import worker for the current module.");
             int errorTimoutInMilliseconds = 5 * 30 * 1000;
 
 
 
             while (true)
             {
-                ImportLogger.Log(_currentSection, "Fetching settings from configuration file.");
+                ImportWorkerLog("Fetching settings from configuration file.");
 
                 (string[] apiConfiguration, string sqlConnectionString, Exception? occuredError) = await GetConfigurationValues();
 
                 if (occuredError != null)
                 {
-                    ImportLogger.Log(_currentSection, "[ERROR] - An error has occured while fetching the settings");
-                    ImportLogger.Log(_currentSection, occuredError.Message, true);
+                    ImportWorkerLog("[ERROR] - An error has occured while fetching the settings");
+                    ImportWorkerLog(occuredError.Message, true);
 
                     State = ModuleState.Error;
                     _errorCount++;
@@ -272,7 +303,7 @@ namespace DataImportClient.Modules
                     continue;
                 }
 
-                ImportLogger.Log(_currentSection, "Successfully fetched settings.");
+                ImportWorkerLog("Successfully fetched settings.");
 
 
 
@@ -286,14 +317,14 @@ namespace DataImportClient.Modules
 
 
 
-                ImportLogger.Log(_currentSection, "Contacting the API and requesting a data set.");
+                ImportWorkerLog("Contacting the API and requesting a data set.");
 
                 (string dataWindSpeed, string dataTemperature, occuredError) = await FetchApiData(apiUrl, cancellationToken);
 
                 if (occuredError != null)
                 {
-                    ImportLogger.Log(_currentSection, "[ERROR] - An error has occured while inserting the data into the database.");
-                    ImportLogger.Log(_currentSection, occuredError.Message, true);
+                    ImportWorkerLog("[ERROR] - An error has occured while inserting the data into the database.");
+                    ImportWorkerLog(occuredError.Message, true);
 
                     State = ModuleState.Error;
                     _errorCount++;
@@ -302,18 +333,18 @@ namespace DataImportClient.Modules
                     continue;
                 }
 
-                ImportLogger.Log(_currentSection, "Successfully fetched the data set from the API.");
+                ImportWorkerLog("Successfully fetched the data set from the API.");
 
 
 
-                ImportLogger.Log(_currentSection, "Inserting the fetched data set into the database.");
+                ImportWorkerLog("Inserting the fetched data set into the database.");
 
                 occuredError = await InsertDataIntoDatabase(sqlConnectionString, dataWindSpeed, dataTemperature, cancellationToken);
 
                 if (occuredError != null)
                 {
-                    ImportLogger.Log(_currentSection, "[ERROR] - An error has occured while inserting the data into the database.");
-                    ImportLogger.Log(_currentSection, occuredError.Message, true);
+                    ImportWorkerLog("[ERROR] - An error has occured while inserting the data into the database.");
+                    ImportWorkerLog(occuredError.Message, true);
 
                     State = ModuleState.Error;
                     _errorCount++;
@@ -322,11 +353,15 @@ namespace DataImportClient.Modules
                     continue;
                 }
 
-                ImportLogger.Log(_currentSection, "Successfully inserted the API data into the database.");
+                ImportWorkerLog("Successfully inserted the API data into the database.");
 
 
 
-                ImportLogger.Log(_currentSection, $"Going to sleep for {apiSleepTimer / 1000} seconds.");
+                _dateOfLastImport = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
+                
+
+
+                ImportWorkerLog($"Going to sleep for {apiSleepTimer / 1000} seconds.");
                 await Task.Delay(apiSleepTimer, cancellationToken);
             }
         }
@@ -458,7 +493,7 @@ namespace DataImportClient.Modules
                 return (string.Empty, string.Empty, new Exception("The fetched data provided by the API is 'null'."));
             }
 
-            ImportLogger.Log(_currentSection, "Successfully received the requested data from the API.");
+            ImportWorkerLog("Successfully received the requested data from the API.");
 
 
 
@@ -488,7 +523,7 @@ namespace DataImportClient.Modules
                 return exception;
             }
 
-            ImportLogger.Log(_currentSection, "Successfully established a database connection.");
+            ImportWorkerLog("Successfully established a database connection.");
 
 
 
@@ -509,6 +544,12 @@ namespace DataImportClient.Modules
             }
 
             return null;
+        }
+
+        private static void ImportWorkerLog(string message, bool removePrefix = false)
+        {
+            ImportLogger.Log(_currentSection, message, removePrefix);
+            _dateOfLastLogFileEntry = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
         }
     }
 }
