@@ -13,6 +13,20 @@ using Microsoft.Data.SqlClient;
 
 namespace DataImportClient.Modules
 {
+    internal struct WeatherData
+    {
+        internal decimal longitude;
+        internal decimal latitude;
+        internal string weatherType;
+        internal decimal humidity;
+        internal decimal windSpeed;
+        internal decimal temperature;
+        internal int sunsetUnixSeconds;
+        internal int sunriseUnixSeconds;
+    }
+
+
+
     internal class Weather
     {
         private const string _currentSection = "ModuleWeather";
@@ -20,7 +34,7 @@ namespace DataImportClient.Modules
         private ModuleState _moduleState;
         private static bool _serviceRunning;
         private static int _errorCount;
-
+        
         private static int _navigationXPosition = 1;
         private static readonly int _countOfMenuOptions = 4;
 
@@ -34,7 +48,7 @@ namespace DataImportClient.Modules
         private static Task _importWorker = new(() => {});
         private static CancellationTokenSource _cancellationTokenSource = new();
 
-        private static ApplicationSettings.Paths _appPaths = new();
+        private static readonly ApplicationSettings.Paths _appPaths = new();
 
 
 
@@ -159,9 +173,9 @@ namespace DataImportClient.Modules
                     try
                     {
                         string importWorkerLogsFolder = _appPaths.weatherImportWorkerLogs;
-                        string fileName = _appPaths.logFileName;
-                        string logFile = Path.Combine(importWorkerLogsFolder, fileName);
-                        Process.Start("notepad.exe", logFile);
+                        Process.Start("explorer.exe", importWorkerLogsFolder);
+
+                        ActivityLogger.Log(_currentSection, "Opened the folder for the import worker logs of the current module.");
                     }
                     catch (Exception exception)
                     {
@@ -173,6 +187,7 @@ namespace DataImportClient.Modules
                 case 2:
                     if (_serviceRunning == true)
                     {
+                        ActivityLogger.Log(_currentSection, "Stopping active import worker for the current module.");
                         ImportWorkerLog("Stopping active import worker for the current module.");
 
                         _cancellationTokenSource?.Cancel();
@@ -188,14 +203,18 @@ namespace DataImportClient.Modules
                     _serviceRunning = true;
 
                     _importWorker = Task.Run(() => ImportApiData(cancellationToken));
+
+                    ActivityLogger.Log(_currentSection, "Starting a new import worker for the current module.");
                     break;
 
                 case 3:
+                    ActivityLogger.Log(_currentSection, $"Clearing errors for the current module. Previous error count: '{_errorCount}'.");
                     State = ModuleState.Running;
                     _errorCount = 0;
                     break;
 
                 case 4:
+                    ActivityLogger.Log(_currentSection, "Returning to the main menu.");
                     return;
             }
 
@@ -319,11 +338,11 @@ namespace DataImportClient.Modules
 
                 ImportWorkerLog("Contacting the API and requesting a data set.");
 
-                (string dataWindSpeed, string dataTemperature, occuredError) = await FetchApiData(apiUrl, cancellationToken);
+                (WeatherData weatherData, occuredError) = await FetchApiData(apiUrl, cancellationToken);
 
                 if (occuredError != null)
                 {
-                    ImportWorkerLog("[ERROR] - An error has occured while inserting the data into the database.");
+                    ImportWorkerLog("[ERROR] - An error has occured while fetching data from the API provider.");
                     ImportWorkerLog(occuredError.Message, true);
 
                     State = ModuleState.Error;
@@ -339,7 +358,7 @@ namespace DataImportClient.Modules
 
                 ImportWorkerLog("Inserting the fetched data set into the database.");
 
-                occuredError = await InsertDataIntoDatabase(sqlConnectionString, dataWindSpeed, dataTemperature, cancellationToken);
+                occuredError = await InsertDataIntoDatabase(sqlConnectionString, weatherData, cancellationToken);
 
                 if (occuredError != null)
                 {
@@ -459,17 +478,17 @@ namespace DataImportClient.Modules
 
 
             string[] apiConfiguration =
-            {
+            [
                 apiUrl,
                 apiKey,
                 apiCity,
                 apiIntervalSeconds,
-            };
+            ];
 
             return (apiConfiguration, sqlConnectionString, null);
         }
 
-        private static async Task<(string dataWindSpeed, string dataTemperature, Exception? occuredError)> FetchApiData(string apiUrl, CancellationToken cancellationToken)
+        private static async Task<(WeatherData weatherData, Exception? occuredError)> FetchApiData(string apiUrl, CancellationToken cancellationToken)
         {
             JObject apiData = [];
 
@@ -483,34 +502,64 @@ namespace DataImportClient.Modules
             }
             catch (Exception exception)
             {
-                return (string.Empty, string.Empty, exception);
+                return (new WeatherData(), exception);
             }
 
 
 
             if (apiData == null || apiData == new JObject())
             {
-                return (string.Empty, string.Empty, new Exception("The fetched data provided by the API is 'null'."));
+                return (new WeatherData(), new Exception("The fetched data provided by the API is 'null'."));
             }
 
             ImportWorkerLog("Successfully received the requested data from the API.");
 
 
 
-            string dataWindSpeed = apiData?["wind"]?["speed"]?.ToString() ?? string.Empty;
-            string dataTemperature = apiData?["main"]?["temp"]?.ToString() ?? string.Empty;
-
-            bool validApiValues = ConsoleHelper.ValidDecimalValues([dataWindSpeed, dataTemperature]);
-
-            if (string.IsNullOrWhiteSpace(dataWindSpeed) || string.IsNullOrWhiteSpace(dataTemperature) || validApiValues == false)
+            try
             {
-                return (string.Empty, string.Empty, new Exception($"The fetched data contains invalid values. (Wind speed: '{dataWindSpeed}' | Temperature: '{dataTemperature}')"));
-            }
+                string dataLatitude = apiData?["coord"]?["lat"]?.ToString() ?? string.Empty;
+                string dataLongitude = apiData?["coord"]?["lon"]?.ToString() ?? string.Empty;
+                string dataHumidity = apiData?["main"]?["humidity"]?.ToString() ?? string.Empty;
+                string dataWindSpeed = apiData?["wind"]?["speed"]?.ToString() ?? string.Empty;
+                string dataTemperature = apiData?["main"]?["temp"]?.ToString() ?? string.Empty;
+                string dataWeatherType = apiData?["weather"]?[0]?["main"]?.ToString() ?? string.Empty;
+                string dataSunsetUnixSeconds = apiData?["sys"]?["sunset"]?.ToString() ?? string.Empty;
+                string dataSunriseUnixSeconds = apiData?["sys"]?["sunrise"]?.ToString() ?? string.Empty;
 
-            return (dataWindSpeed, dataTemperature, null);
+
+
+                bool validIntApiValues = ConsoleHelper.ValidDecimalValues([dataLatitude, dataLongitude, dataHumidity, dataWindSpeed, dataTemperature]);
+                bool validDecimalApiValues = ConsoleHelper.ValidIntValues([dataSunsetUnixSeconds, dataSunriseUnixSeconds]);
+
+                if (string.IsNullOrWhiteSpace(dataWeatherType) || validIntApiValues == false || validDecimalApiValues == false)
+                {
+                    throw new Exception($"The fetched API data contains invalid values. Weather type: '{dataWeatherType}' | Valid decimal values: '{validDecimalApiValues}' | Valid int values: '{validIntApiValues}'");
+                }
+
+                WeatherData weatherData = new()
+                {
+                    humidity = Convert.ToDecimal(dataHumidity),
+                    latitude = Convert.ToDecimal(dataLatitude),
+                    longitude = Convert.ToDecimal(dataLongitude),
+                    windSpeed = Convert.ToDecimal(dataWindSpeed),
+                    temperature = Convert.ToDecimal(dataTemperature),
+                    weatherType = dataWeatherType,
+                    sunriseUnixSeconds = Convert.ToInt32(dataSunriseUnixSeconds),
+                    sunsetUnixSeconds = Convert.ToInt32(dataSunsetUnixSeconds),
+                };
+
+
+
+                return (weatherData, null);
+            }
+            catch (Exception exception)
+            {
+                return (new WeatherData(), exception);
+            }
         }
 
-        private static async Task<Exception?> InsertDataIntoDatabase(string sqlConnectionString, string dataWindSpeed, string dataTemperature, CancellationToken cancellationToken)
+        private static async Task<Exception?> InsertDataIntoDatabase(string sqlConnectionString, WeatherData weatherData, CancellationToken cancellationToken)
         {
             SqlConnection databaseConnection = new(sqlConnectionString);
 
@@ -524,17 +573,25 @@ namespace DataImportClient.Modules
             }
 
             ImportWorkerLog("Successfully established a database connection.");
-
+            
 
 
             try
             {
-                string insertDataQuery = "INSERT INTO dbo.weather (windSpeed, temperature) VALUES (@windSpeed, @temperature);";
+                string queryNames = "longitude, latitude, weatherType, sunriseUnixSeconds, sunsetUnixSeconds, humidity, windSpeed, temperature";
+                string queryValues = "@longitude, @latitude, @weatherType, @sunriseUnixSeconds, @sunsetUnixSeconds, @humidity, @windSpeed, @temperature";
+                string insertDataQuery = $"INSERT INTO dbo.weather ({queryNames}) VALUES ({queryValues});";
                 
                 using SqlCommand insertCommand = new(insertDataQuery, databaseConnection);
-
-                insertCommand.Parameters.AddWithValue("@windSpeed", decimal.Parse(dataWindSpeed));
-                insertCommand.Parameters.AddWithValue("@temperature", decimal.Parse(dataTemperature));
+                
+                insertCommand.Parameters.AddWithValue("@longitude", weatherData.longitude);
+                insertCommand.Parameters.AddWithValue("@latitude", weatherData.latitude);
+                insertCommand.Parameters.AddWithValue("@weatherType", weatherData.weatherType);
+                insertCommand.Parameters.AddWithValue("@sunriseUnixSeconds", weatherData.sunriseUnixSeconds);
+                insertCommand.Parameters.AddWithValue("@sunsetUnixSeconds", weatherData.sunsetUnixSeconds);
+                insertCommand.Parameters.AddWithValue("@humidity", weatherData.humidity);
+                insertCommand.Parameters.AddWithValue("@windSpeed", weatherData.windSpeed);
+                insertCommand.Parameters.AddWithValue("@temperature", weatherData.temperature);
 
                 await insertCommand.ExecuteNonQueryAsync(cancellationToken);
             }

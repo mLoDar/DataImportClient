@@ -54,5 +54,18 @@ namespace DataImportClient.Scripts
 
             return true;
         }
+
+        internal static bool ValidIntValues(string[] values)
+        {
+            foreach (string value in values)
+            {
+                if (int.TryParse(value, out int _) == false)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     }
 }
