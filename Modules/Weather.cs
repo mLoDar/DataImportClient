@@ -187,8 +187,8 @@ namespace DataImportClient.Modules
                 case 2:
                     if (_serviceRunning == true)
                     {
-                        ActivityLogger.Log(_currentSection, "Stopping active import worker for the current module.");
-                        ImportWorkerLog("Stopping active import worker for the current module.");
+                        ActivityLogger.Log(_currentSection, "Stopping the active import worker of the current module.");
+                        ImportWorkerLog("Stopping the active import worker of the current module.");
 
                         _cancellationTokenSource?.Cancel();
                         State = ModuleState.Stopped;
@@ -205,6 +205,8 @@ namespace DataImportClient.Modules
                     _importWorker = Task.Run(() => ImportApiData(cancellationToken));
 
                     ActivityLogger.Log(_currentSection, "Starting a new import worker for the current module.");
+                    ImportWorkerLog(string.Empty, true);
+                    ImportWorkerLog("Starting a new import worker for the current module.");
                     break;
 
                 case 3:
@@ -299,7 +301,9 @@ namespace DataImportClient.Modules
 
         private async Task ImportApiData(CancellationToken cancellationToken)
         {
-            ImportWorkerLog("Starting import worker for the current module.");
+            ImportWorkerLog(string.Empty, true);
+            ImportWorkerLog("Starting a new import worker for the current module.");
+
             int errorTimoutInMilliseconds = 5 * 30 * 1000;
 
 
@@ -308,7 +312,7 @@ namespace DataImportClient.Modules
             {
                 ImportWorkerLog("Fetching settings from configuration file.");
 
-                (string[] apiConfiguration, string sqlConnectionString, Exception? occuredError) = await GetConfigurationValues();
+                (string[] apiConfiguration, string sqlConnectionString, string dbTableName, Exception? occuredError) = await GetConfigurationValues();
 
                 if (occuredError != null)
                 {
@@ -328,10 +332,10 @@ namespace DataImportClient.Modules
 
                 string apiUrl = apiConfiguration[0];
                 string apiKey = apiConfiguration[1];
-                string apiCity = apiConfiguration[2];
+                string apiLocation = apiConfiguration[2];
                 string apiIntervalSeconds = apiConfiguration[3];
 
-                apiUrl += $"?q={apiCity}&appid={apiKey}&mode=json&units=metric";
+                apiUrl += $"?q={apiLocation}&appid={apiKey}&mode=json&units=metric";
                 int apiSleepTimer = Convert.ToInt32(apiIntervalSeconds) * 1000;
 
 
@@ -358,7 +362,7 @@ namespace DataImportClient.Modules
 
                 ImportWorkerLog("Inserting the fetched data set into the database.");
 
-                occuredError = await InsertDataIntoDatabase(sqlConnectionString, weatherData, cancellationToken);
+                occuredError = await InsertDataIntoDatabase(sqlConnectionString, dbTableName, weatherData, cancellationToken);
 
                 if (occuredError != null)
                 {
@@ -385,7 +389,7 @@ namespace DataImportClient.Modules
             }
         }
 
-        private static async Task<(string[] apiConfiguration, string sqlConnectionString, Exception? occuredError)> GetConfigurationValues()
+        private static async Task<(string[] apiConfiguration, string sqlConnectionString, string dbTableName, Exception? occuredError)> GetConfigurationValues()
         {
             JObject savedConfiguration;
 
@@ -400,7 +404,7 @@ namespace DataImportClient.Modules
             }
             catch (Exception exception)
             {
-                return (Array.Empty<string>(), string.Empty, exception);
+                return (Array.Empty<string>(), string.Empty, string.Empty, exception);
             }
 
 
@@ -434,45 +438,47 @@ namespace DataImportClient.Modules
             }
             catch (Exception exception)
             {
-                return (Array.Empty<string>(), string.Empty, exception);
+                return (Array.Empty<string>(), string.Empty, string.Empty, exception);
             }
 
 
 
             string apiUrl;
             string apiKey;
-            string apiCity;
+            string apiLocation;
             string apiIntervalSeconds;
             string sqlConnectionString;
+            string dbTableName;
 
             try
             {
                 apiUrl = weatherModule?["apiUrl"]?.ToString() ?? string.Empty;
                 apiKey = weatherModule?["apiKey"]?.ToString() ?? string.Empty;
-                apiCity = weatherModule?["apiCity"]?.ToString() ?? string.Empty;
+                apiLocation = weatherModule?["apiLocation"]?.ToString() ?? string.Empty;
                 apiIntervalSeconds = weatherModule?["apiIntervalSeconds"]?.ToString() ?? string.Empty;
                 sqlConnectionString = sqlData?["connectionString"]?.ToString() ?? string.Empty;
+                dbTableName = weatherModule?["dbTableName"]?.ToString() ?? string.Empty;
 
-                if (new string[] { apiUrl, apiKey, apiIntervalSeconds, sqlConnectionString }.Contains(null))
+                if (new string[] { apiUrl, apiKey, apiLocation, apiIntervalSeconds, sqlConnectionString, dbTableName }.Contains(null))
                 {
-                    throw new Exception("One or mulitple API or SQL values are null!");
+                    throw new Exception("One or mulitple API or SQL values are null. Please check the configuration file!");
                 }
 
-                if (new string[] { apiUrl, apiKey, apiIntervalSeconds, sqlConnectionString }.Contains(string.Empty))
+                if (new string[] { apiUrl, apiKey, apiLocation, apiIntervalSeconds, sqlConnectionString, dbTableName }.Contains(string.Empty))
                 {
-                    throw new Exception("One or mulitple API or SQL values are an empty string!");
+                    throw new Exception("One or mulitple API or SQL values are an empty string. Please check the configuration file!");
                 }
             }
             catch (Exception exception)
             {
-                return (Array.Empty<string>(), string.Empty, exception);
+                return (Array.Empty<string>(), string.Empty, string.Empty, exception);
             }
 
 
 
             if (int.TryParse(apiIntervalSeconds, out int _) == false)
             {
-                return (Array.Empty<string>(), string.Empty, new Exception("Failed to parse the provided api interval to a number."));
+                return (Array.Empty<string>(), string.Empty, string.Empty, new Exception("Failed to parse the provided API interval to a number."));
             }
 
 
@@ -481,11 +487,11 @@ namespace DataImportClient.Modules
             [
                 apiUrl,
                 apiKey,
-                apiCity,
+                apiLocation,
                 apiIntervalSeconds,
             ];
 
-            return (apiConfiguration, sqlConnectionString, null);
+            return (apiConfiguration, sqlConnectionString, dbTableName, null);
         }
 
         private static async Task<(WeatherData weatherData, Exception? occuredError)> FetchApiData(string apiUrl, CancellationToken cancellationToken)
@@ -559,7 +565,7 @@ namespace DataImportClient.Modules
             }
         }
 
-        private static async Task<Exception?> InsertDataIntoDatabase(string sqlConnectionString, WeatherData weatherData, CancellationToken cancellationToken)
+        private static async Task<Exception?> InsertDataIntoDatabase(string sqlConnectionString, string dbTableName, WeatherData weatherData, CancellationToken cancellationToken)
         {
             SqlConnection databaseConnection = new(sqlConnectionString);
 
@@ -580,7 +586,7 @@ namespace DataImportClient.Modules
             {
                 string queryNames = "longitude, latitude, weatherType, sunriseUnixSeconds, sunsetUnixSeconds, humidity, windSpeed, temperature";
                 string queryValues = "@longitude, @latitude, @weatherType, @sunriseUnixSeconds, @sunsetUnixSeconds, @humidity, @windSpeed, @temperature";
-                string insertDataQuery = $"INSERT INTO dbo.weather ({queryNames}) VALUES ({queryValues});";
+                string insertDataQuery = $"INSERT INTO {dbTableName} ({queryNames}) VALUES ({queryValues});";
                 
                 using SqlCommand insertCommand = new(insertDataQuery, databaseConnection);
                 

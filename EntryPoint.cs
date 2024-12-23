@@ -155,10 +155,11 @@ namespace DataImportClient
                     {
                         ["weather"] = new JObject()
                         {
-                            ["apiUrl"] = "https://urlTo.TheAPI.provider",
-                            ["apiKey"] = "apiKeyFromTheProvide",
-                            ["apiCity"] = "cityFromWhichToFetch",
-                            ["apiIntervalSeconds"] = "howLongToWaitBeforeCallingApi"
+                            ["apiUrl"] = "https://api.openweathermap.org/data/2.5/weather",
+                            ["apiKey"] = "yourApiKey",
+                            ["apiLocation"] = "City,CountryCode",
+                            ["apiIntervalSeconds"] = 300,
+                            ["dbTableName"] = "tableNameforImport"
                         },
                         ["electricity"] = new JObject()
                         {
