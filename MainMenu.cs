@@ -237,7 +237,7 @@ namespace DataImportClient
         {
             while (_someModuleStateChanged == false)
             {
-                await Task.Delay(1000);
+                await Task.Delay(1000, cancellationToken);
             }
 
             _someModuleStateChanged = false;

@@ -67,7 +67,7 @@ namespace DataImportClient.Modules
             }
         }
 
-        internal event EventHandler StateChanged;
+        internal event EventHandler? StateChanged;
 
         protected virtual void OnStateChange()
         {
