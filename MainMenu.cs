@@ -29,6 +29,8 @@ namespace DataImportClient
         private static readonly DistrictHeat _moduleDistrictHeat = new();
         private static readonly Photovoltaic _modulePhotovoltaic = new();
 
+        internal static Miscellaneous _sectionMiscellaneous = new();
+
         private static string _stateWeather = string.Empty;
         private static string _stateElectricity = string.Empty;
         private static string _stateDistrictHeat = string.Empty;
@@ -149,7 +151,7 @@ namespace DataImportClient
                     break;
 
                 case 5:
-                    // TODO: Call main method of the selected module
+                    await _sectionMiscellaneous.Main();
                     break;
             }
 
@@ -172,7 +174,7 @@ namespace DataImportClient
             Console.WriteLine("                                                               ");
             Console.WriteLine("                                                               ");
             Console.WriteLine("             ┌ Modules                           State         ");
-            Console.WriteLine("             └────────────────┐                  ┌───┐         ");
+            Console.WriteLine("             └─────────────────                  ┌───┐         ");
             Console.WriteLine("             {0} Weather                         │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 1 ? ">" : " ")}\u001b[97m]", _stateWeather);
             Console.WriteLine("             {0} Electricity                     │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 2 ? ">" : " ")}\u001b[97m]", _stateElectricity);
             Console.WriteLine("             {0} DistrictHeat                    │ {1}         ", $"[\u001b[91m{(_navigationXPosition == 3 ? ">" : " ")}\u001b[97m]", _stateDistrictHeat);
@@ -181,8 +183,8 @@ namespace DataImportClient
             Console.WriteLine("                                                               ");
             Console.WriteLine("                                                               ");
             Console.WriteLine("             ┌ Application                                     ");
-            Console.WriteLine("             └────────────────┐                                ");
-            Console.WriteLine("             {0} Settings                                      ", $"[\u001b[91m{(_navigationXPosition == 5 ? ">" : " ")}\u001b[97m]");
+            Console.WriteLine("             └─────────────────┐                               ");
+            Console.WriteLine("             {0} Miscellaneous                                 ", $"[\u001b[91m{(_navigationXPosition == 5 ? ">" : " ")}\u001b[97m]");
         }
 
         private static string FormatModuleStates(ModuleState moduleState, int errorCount)
