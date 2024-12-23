@@ -1,4 +1,7 @@
-﻿using DataImportClient.Scripts;
+﻿using System.Diagnostics;
+
+using DataImportClient.Scripts;
+using DataImportClient.Ressources;
 
 
 
@@ -12,6 +15,8 @@ namespace DataImportClient
 
         private static int _navigationXPosition = 1;
         private static readonly int _countOfMenuOptions = 5;
+
+        private static readonly ApplicationSettings.Paths _appPaths = new();
 
 
 
@@ -79,7 +84,29 @@ namespace DataImportClient
             switch (_navigationXPosition)
             {
                 case 1:
-                    // TODO: Open the applications configuration file
+                    try
+                    {
+                        string configurationFile = _appPaths.configurationFile;
+                        Process.Start("notepad.exe", configurationFile);
+
+                        ActivityLogger.Log(_currentSection, "Opened the configuration file of the application.");
+                    }
+                    catch (Exception exception)
+                    {
+                        ActivityLogger.Log(_currentSection, "[ERROR] Failed to open the configuration file of the application.");
+                        ActivityLogger.Log(_currentSection, exception.Message, true);
+
+                        Console.Clear();
+
+                        Console.SetCursorPosition(0, 4);
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("             [ERROR] Failed to perform this action.              ");
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.WriteLine("                                                                 ");
+                        Console.WriteLine("             Please check the error log for detailed information.");
+
+                        await Task.Delay(3000);
+                    }
                     break;
 
                 case 2:
@@ -91,7 +118,29 @@ namespace DataImportClient
                     break;
 
                 case 4:
-                    // TODO: Open folder for of the applications log files
+                    try
+                    {
+                        string logsFolder = _appPaths.logsFolder;
+                        Process.Start("explorer.exe", logsFolder);
+
+                        ActivityLogger.Log(_currentSection, "Opened the configuration folder of the applications log files.");
+                    }
+                    catch (Exception exception)
+                    {
+                        ActivityLogger.Log(_currentSection, "[ERROR] Failed to open the folder of the applications log files.");
+                        ActivityLogger.Log(_currentSection, exception.Message, true);
+
+                        Console.Clear();
+
+                        Console.SetCursorPosition(0, 4);
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("             [ERROR] Failed to perform this action.              ");
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.WriteLine("                                                                 ");
+                        Console.WriteLine("             Please check the error log for detailed information.");
+
+                        await Task.Delay(3000);
+                    }
                     break;
 
                 case 5:

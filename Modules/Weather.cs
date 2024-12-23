@@ -181,6 +181,17 @@ namespace DataImportClient.Modules
                     {
                         ActivityLogger.Log(_currentSection, "[ERROR] Failed to open the folder for import worker logs of the current module.");
                         ActivityLogger.Log(_currentSection, exception.Message, true);
+
+                        Console.Clear();
+
+                        Console.SetCursorPosition(0, 4);
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("             [ERROR] Failed to perform this action.               ");
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.WriteLine("                                                                  ");
+                        Console.WriteLine("             Please check the error log for detailled information.");
+
+                        await Task.Delay(3000);
                     }
                     break;
 
