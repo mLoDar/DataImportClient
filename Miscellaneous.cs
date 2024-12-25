@@ -112,7 +112,7 @@ namespace DataImportClient
                     break;
 
                 case 2:
-                    // TODO: Show a minimalistic error cache within the console
+                    errorCache.DisplayMinimalistic();
                     break;
 
                 case 3:

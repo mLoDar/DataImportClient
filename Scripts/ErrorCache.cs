@@ -29,16 +29,6 @@
 
 
 
-        internal List<ErrorCacheEntry> Entries
-        {
-            get
-            {
-                return _entries;
-            }
-        }
-
-
-
         internal void AddEntry(string errorSection, string errorMessage, string detailedError)
         {
             ErrorCacheEntry entry = new()
@@ -74,6 +64,148 @@
             {
                 _entries.Remove(entry);
             }
+        }
+
+        internal void DisplayMinimalistic()
+        {
+            int startIndex = 0;
+
+
+            
+            Console.Clear();
+
+        LabelDrawErrorCache:
+
+            Console.SetCursorPosition(0, 4);
+
+
+
+            if (_entries.Count <= 0)
+            {
+                DisplayZeroErrorSituation();
+                return;
+            }
+
+
+
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("              ┏┓          ┏┓   ┓   ");
+            Console.WriteLine("              ┣ ┏┓┏┓┏┓┏┓  ┃ ┏┓┏┣┓┏┓");
+            Console.WriteLine("              ┗┛┛ ┛ ┗┛┛   ┗┛┗┻┗┛┗┗ ");
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("             ─────────────────────────                        ");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("                                                               ");
+            Console.WriteLine("                                                               ");
+            Console.WriteLine("             ┌──────────────────────────────────────────────────────────────────────────────────────────┐");
+
+
+
+            int maxErrorLength = 88;
+            int errorsDisplayedAtOnce = 10;
+
+            for (int currentErrorIndex = startIndex; currentErrorIndex < startIndex + errorsDisplayedAtOnce && currentErrorIndex < _entries.Count; currentErrorIndex++)
+            {
+                string currentError = _entries[currentErrorIndex].ToMinimalistic();
+
+                if (currentError.Length > maxErrorLength)
+                {
+                    currentError = currentError[..(maxErrorLength - 4)] + " ...";
+                }
+
+                currentError = currentError.PadRight(maxErrorLength);
+
+                Console.WriteLine($"             │ {currentError} │");
+            }
+
+
+
+            Console.WriteLine("             └──────────────────────────────────────────────────────────────────────────────────────────┘");
+            Console.WriteLine("                                                               ");
+            Console.WriteLine("                                                               ");
+            Console.WriteLine("             ┌ Navigate with the arrow keys                    ");
+            Console.WriteLine("             └────────────────────────────────                 ");
+            Console.WriteLine("             ┌ Use 'Backspace' to return                       ");
+            Console.WriteLine("             └─────────────────────────────                    ");
+
+
+
+            ConsoleKey pressedKey = Console.ReadKey(true).Key;
+
+            switch (pressedKey)
+            {
+                case ConsoleKey.DownArrow:
+                    if (startIndex + 1 <= _entries.Count - errorsDisplayedAtOnce)
+                    {
+                        startIndex += 1;
+                    }
+                    break;
+
+                case ConsoleKey.UpArrow:
+                    if (startIndex - 1 >= 0)
+                    {
+                        startIndex -= 1;
+                    }
+                    break;
+
+                case ConsoleKey.Escape:
+                    return;
+
+                case ConsoleKey.Backspace:
+                    return;
+
+                default:
+                    break;
+            }
+
+
+            goto LabelDrawErrorCache;
+        }
+        
+        private static void DisplayZeroErrorSituation()
+        {
+        LabelDrawInformation:
+
+
+
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("              ┏┓          ┏┓   ┓   ");
+            Console.WriteLine("              ┣ ┏┓┏┓┏┓┏┓  ┃ ┏┓┏┣┓┏┓");
+            Console.WriteLine("              ┗┛┛ ┛ ┗┛┛   ┗┛┗┻┗┛┗┗ ");
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("             ─────────────────────────                        ");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("                                                               ");
+            Console.WriteLine("                                                               ");
+            Console.WriteLine("             ┌─────────────────────────────────────────────────────────────┐");
+            Console.WriteLine("             │                                                             │");
+            Console.WriteLine("             │      \u001b[92mThere are currently no errors in the cache, yay :)\u001b[97m     │");
+            Console.WriteLine("             │                                                             │");
+            Console.WriteLine("             └─────────────────────────────────────────────────────────────┘");
+            Console.WriteLine("                                                               ");
+            Console.WriteLine("                                                               ");
+            Console.WriteLine("             ┌ Use 'Backspace' to return                       ");
+            Console.WriteLine("             └────────────────────────────                     ");
+
+
+
+            ConsoleKey pressedKey = Console.ReadKey(true).Key;
+
+            switch (pressedKey)
+            {
+                case ConsoleKey.Escape:
+                    return;
+
+                case ConsoleKey.Backspace:
+                    return;
+
+                default:
+                    break;
+            }
+
+
+
+            goto LabelDrawInformation;
         }
     }
 }
