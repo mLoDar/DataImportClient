@@ -60,10 +60,10 @@ namespace DataImportClient
 
 
 
-            _stateWeather = FormatModuleStates(_moduleWeather.State, _moduleWeather.ErrorCount);
-            _stateElectricity = FormatModuleStates(_moduleElectricity.State, _moduleElectricity.ErrorCount);
-            _stateDistrictHeat = FormatModuleStates(_moduleDistrictHeat.State, _moduleDistrictHeat.ErrorCount);
-            _statePhotovoltaic = FormatModuleStates(_modulePhotovoltaic.State, _modulePhotovoltaic.ErrorCount);
+            _stateWeather = FormatModuleState(_moduleWeather.State, _moduleWeather.ErrorCount);
+            _stateElectricity = FormatModuleState(_moduleElectricity.State, _moduleElectricity.ErrorCount);
+            _stateDistrictHeat = FormatModuleState(_moduleDistrictHeat.State, _moduleDistrictHeat.ErrorCount);
+            _statePhotovoltaic = FormatModuleState(_modulePhotovoltaic.State, _modulePhotovoltaic.ErrorCount);
 
 
 
@@ -187,7 +187,7 @@ namespace DataImportClient
             Console.WriteLine("             {0} Miscellaneous                                 ", $"[\u001b[91m{(_navigationXPosition == 5 ? ">" : " ")}\u001b[97m]");
         }
 
-        private static string FormatModuleStates(ModuleState moduleState, int errorCount)
+        private static string FormatModuleState(ModuleState moduleState, int errorCount)
         {
             string formattedState = "\u001b[96m?\u001b[97m │ \u001b[96mUnknown\u001b[97m";
 

@@ -34,7 +34,7 @@ namespace DataImportClient.Modules
         private ModuleState _moduleState;
         private static bool _serviceRunning;
         private static int _errorCount;
-        
+
         private static int _navigationXPosition = 1;
         private static readonly int _countOfMenuOptions = 4;
 
@@ -365,7 +365,7 @@ namespace DataImportClient.Modules
                     ImportWorkerLog("[ERROR] - An error has occured while fetching data from the API provider.");
                     ImportWorkerLog(occuredError.Message, true);
 
-                    MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, " An error has occured while fetching data from the API provider.", occuredError.Message);
+                    MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, "An error has occured while fetching data from the API provider.", occuredError.Message);
 
                     State = ModuleState.Error;
                     _errorCount++;
@@ -401,7 +401,7 @@ namespace DataImportClient.Modules
 
 
                 _dateOfLastImport = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
-                
+
 
 
                 ImportWorkerLog($"Going to sleep for {apiSleepTimer / 1000} seconds.");
@@ -599,7 +599,7 @@ namespace DataImportClient.Modules
             }
 
             ImportWorkerLog("Successfully established a database connection.");
-            
+
 
 
             try
@@ -607,9 +607,9 @@ namespace DataImportClient.Modules
                 string queryNames = "longitude, latitude, weatherType, sunriseUnixSeconds, sunsetUnixSeconds, humidity, windSpeed, temperature";
                 string queryValues = "@longitude, @latitude, @weatherType, @sunriseUnixSeconds, @sunsetUnixSeconds, @humidity, @windSpeed, @temperature";
                 string insertDataQuery = $"INSERT INTO {dbTableName} ({queryNames}) VALUES ({queryValues});";
-                
+
                 using SqlCommand insertCommand = new(insertDataQuery, databaseConnection);
-                
+
                 insertCommand.Parameters.AddWithValue("@longitude", weatherData.longitude);
                 insertCommand.Parameters.AddWithValue("@latitude", weatherData.latitude);
                 insertCommand.Parameters.AddWithValue("@weatherType", weatherData.weatherType);
