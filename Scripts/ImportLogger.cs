@@ -43,7 +43,7 @@ namespace DataImportClient.Scripts
                 }
 
                 string logFile = Path.Combine(logsFolder, logFileName);
-                string prefix = $"[{DateTime.Now}] - [ProcessId: {_appRuntime.processId}] - [Section: {currentSection}] - ";
+                string prefix = $"[{DateTime.Now}] - [ProcessId: {Environment.ProcessId}] - [Section: {currentSection}] - ";
 
                 if (removePrefix == true)
                 {

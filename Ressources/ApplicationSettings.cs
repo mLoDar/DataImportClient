@@ -6,8 +6,6 @@
         {
             internal readonly string appVersion = "v1.0.0";
             internal readonly string appRelease = "TBA";
-
-            internal readonly int processId = Environment.ProcessId;
         }
 
         internal class Paths

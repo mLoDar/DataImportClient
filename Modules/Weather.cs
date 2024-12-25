@@ -224,6 +224,9 @@ namespace DataImportClient.Modules
                     ActivityLogger.Log(_currentSection, $"Clearing errors for the current module. Previous error count: '{_errorCount}'.");
                     State = ModuleState.Running;
                     _errorCount = 0;
+
+                    MainMenu._sectionMiscellaneous.errorCache.RemoveSectionFromCache(_currentSection);
+
                     break;
 
                 case 4:
@@ -327,8 +330,10 @@ namespace DataImportClient.Modules
 
                 if (occuredError != null)
                 {
-                    ImportWorkerLog("[ERROR] - An error has occured while fetching the settings");
+                    ImportWorkerLog("[ERROR] - An error has occured while fetching the settings.");
                     ImportWorkerLog(occuredError.Message, true);
+
+                    MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, "An error has occured while fetching the settings.", occuredError.Message);
 
                     State = ModuleState.Error;
                     _errorCount++;
@@ -360,6 +365,8 @@ namespace DataImportClient.Modules
                     ImportWorkerLog("[ERROR] - An error has occured while fetching data from the API provider.");
                     ImportWorkerLog(occuredError.Message, true);
 
+                    MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, " An error has occured while fetching data from the API provider.", occuredError.Message);
+
                     State = ModuleState.Error;
                     _errorCount++;
 
@@ -379,6 +386,8 @@ namespace DataImportClient.Modules
                 {
                     ImportWorkerLog("[ERROR] - An error has occured while inserting the data into the database.");
                     ImportWorkerLog(occuredError.Message, true);
+
+                    MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, " An error has occured while inserting the data into the database.", occuredError.Message);
 
                     State = ModuleState.Error;
                     _errorCount++;

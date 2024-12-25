@@ -18,6 +18,8 @@ namespace DataImportClient
 
         private static readonly ApplicationSettings.Paths _appPaths = new();
 
+        internal ErrorCache errorCache = new();
+
 
 
         internal async Task Main()
