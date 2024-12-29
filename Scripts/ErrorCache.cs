@@ -31,6 +31,8 @@ namespace DataImportClient.Scripts
 
     internal class ErrorCache
     {
+        private const string _currentSection = "ErrorCache";
+
         private readonly List<ErrorCacheEntry> _entries = [];
 
         const int maxEntries = 30;
@@ -78,7 +80,22 @@ namespace DataImportClient.Scripts
 
         internal void DisplayMinimalistic()
         {
-            int startIndex = 0;
+            int cacheViewStartIndex = 0;
+
+            if (_entries.Count <= 0)
+            {
+                ActivityLogger.Log(_currentSection, "The error cache currently does not hold any entries.");
+
+                DisplayZeroErrorSituation();
+
+                ActivityLogger.Log(_currentSection, "Returning to miscellaneous selection.");
+                return;
+            }
+
+
+
+            ActivityLogger.Log(_currentSection, "Displaying a minimal error cache, waiting for return signal.");
+            ActivityLogger.Log(_currentSection, $"The error cache currently holds {(_entries.Count > 1 ? "1 entry" : $"{_entries.Count} entries")}.");
 
 
 
@@ -87,14 +104,6 @@ namespace DataImportClient.Scripts
         LabelDrawErrorCache:
 
             Console.SetCursorPosition(0, 4);
-
-
-
-            if (_entries.Count <= 0)
-            {
-                DisplayZeroErrorSituation();
-                return;
-            }
 
 
 
@@ -114,7 +123,7 @@ namespace DataImportClient.Scripts
             int maxErrorLength = 88;
             int errorsDisplayedAtOnce = 10;
 
-            for (int currentErrorIndex = startIndex; currentErrorIndex < startIndex + errorsDisplayedAtOnce && currentErrorIndex < _entries.Count; currentErrorIndex++)
+            for (int currentErrorIndex = cacheViewStartIndex; currentErrorIndex < cacheViewStartIndex + errorsDisplayedAtOnce && currentErrorIndex < _entries.Count; currentErrorIndex++)
             {
                 string currentError = _entries[currentErrorIndex].ToMinimalistic();
 
@@ -145,28 +154,31 @@ namespace DataImportClient.Scripts
             switch (pressedKey)
             {
                 case ConsoleKey.DownArrow:
-                    if (startIndex + 1 <= _entries.Count - errorsDisplayedAtOnce)
+                    if (cacheViewStartIndex + 1 <= _entries.Count - errorsDisplayedAtOnce)
                     {
-                        startIndex += 1;
+                        cacheViewStartIndex += 1;
                     }
                     break;
 
                 case ConsoleKey.UpArrow:
-                    if (startIndex - 1 >= 0)
+                    if (cacheViewStartIndex - 1 >= 0)
                     {
-                        startIndex -= 1;
+                        cacheViewStartIndex -= 1;
                     }
                     break;
 
                 case ConsoleKey.Escape:
+                    ActivityLogger.Log(_currentSection, "Returning to miscellaneous selection via 'ESC'.");
                     return;
 
                 case ConsoleKey.Backspace:
+                    ActivityLogger.Log(_currentSection, "Returning to miscellaneous selection via 'BACKSPACE'.");
                     return;
 
                 default:
                     break;
             }
+
 
 
             goto LabelDrawErrorCache;
@@ -176,16 +188,15 @@ namespace DataImportClient.Scripts
         {
             if (_entries.Count <= 0)
             {
-                Console.Clear();
+                ActivityLogger.Log(_currentSection, "The error cache currently does not hold any entries.");
 
-                Console.SetCursorPosition(0, 4);
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("             Information");
-                Console.ForegroundColor = ConsoleColor.White;
-                Console.WriteLine("             ");
-                Console.WriteLine("             There are currently no errors in the cache, yay :)");
+                string title = "Information";
+                string description = "There are currently no errors in the cache, yay :)";
 
-                await Task.Delay(5000);
+                await ConsoleHelper.DisplayInformation(title, description, ConsoleColor.Green);
+
+                ActivityLogger.Log(_currentSection, "Returning to miscellaneous selection.");
+
                 return;
             }
 
@@ -210,12 +221,24 @@ namespace DataImportClient.Scripts
             {
                 await File.WriteAllLinesAsync(exportFileName, [.. errorCacheEntries]);
 
+                ActivityLogger.Log(_currentSection, "Successfully created a detailed error cache export.");
+
                 Process.Start("notepad.exe", exportFileName);
+
+                ActivityLogger.Log(_currentSection, "The current error cache export was opened successfully.");
             }
-            catch
+            catch (Exception exception)
             {
-                // TODO: Log exception and add error to error cache
+                ActivityLogger.Log(_currentSection, "[ERROR] - Failed to create or open the error cache export.");
+                ActivityLogger.Log(_currentSection, exception.ToString(), true);
+
+                string title = "Failed to perform this action.";
+                string description = "Please check the error log for detailed information.";
+
+                await ConsoleHelper.DisplayInformation(title, description, ConsoleColor.Red);
             }
+
+            ActivityLogger.Log(_currentSection, "Returning to miscellaneous selection.");
         }
 
         private static void DisplayZeroErrorSituation()

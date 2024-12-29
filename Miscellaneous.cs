@@ -98,24 +98,22 @@ namespace DataImportClient
                         ActivityLogger.Log(_currentSection, "[ERROR] Failed to open the configuration file of the application.");
                         ActivityLogger.Log(_currentSection, exception.Message, true);
 
-                        Console.Clear();
+                        string title = "Failed to perform this action.";
+                        string description = "Please check the error log for detailed information.";
 
-                        Console.SetCursorPosition(0, 4);
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("             [ERROR] Failed to perform this action.              ");
-                        Console.ForegroundColor = ConsoleColor.White;
-                        Console.WriteLine("                                                                 ");
-                        Console.WriteLine("             Please check the error log for detailed information.");
-
-                        await Task.Delay(3000);
+                        await ConsoleHelper.DisplayInformation(title, description, ConsoleColor.Red);
                     }
                     break;
 
                 case 2:
+                    ActivityLogger.Log(_currentSection, "Opening a minimalistic error cache view.");
+
                     errorCache.DisplayMinimalistic();
                     break;
 
                 case 3:
+                    ActivityLogger.Log(_currentSection, "Opening a detailed error cache view.");
+
                     await errorCache.DisplayDetailed();
                     break;
 
