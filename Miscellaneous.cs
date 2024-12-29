@@ -116,7 +116,7 @@ namespace DataImportClient
                     break;
 
                 case 3:
-                    // TODO: Show a detailed error cache in a text file
+                    await errorCache.DisplayDetailed();
                     break;
 
                 case 4:

@@ -1,4 +1,12 @@
-﻿namespace DataImportClient.Scripts
+﻿using System.Diagnostics;
+
+using DataImportClient.Ressources;
+
+
+
+
+
+namespace DataImportClient.Scripts
 {
     struct ErrorCacheEntry
     {
@@ -15,7 +23,7 @@
 
         internal readonly string ToDetailed()
         {
-            return $"[{dateTime:yyyy-MM-dd HH:mm:ss}] - [{processId} | {section}] - {error} {detail}";
+            return $"[{dateTime:yyyy-MM-dd HH:mm:ss}] - [ProcessId: {processId} | Section: {section}] - {error} {detail}";
         }
     }
 
@@ -26,6 +34,8 @@
         private readonly List<ErrorCacheEntry> _entries = [];
 
         const int maxEntries = 30;
+
+        private static readonly ApplicationSettings.Paths _appPaths = new();
 
 
 
@@ -71,7 +81,7 @@
             int startIndex = 0;
 
 
-            
+
             Console.Clear();
 
         LabelDrawErrorCache:
@@ -161,13 +171,59 @@
 
             goto LabelDrawErrorCache;
         }
-        
+
+        internal async Task DisplayDetailed()
+        {
+            if (_entries.Count <= 0)
+            {
+                Console.Clear();
+
+                Console.SetCursorPosition(0, 4);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("             Information");
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine("             ");
+                Console.WriteLine("             There are currently no errors in the cache, yay :)");
+
+                await Task.Delay(5000);
+                return;
+            }
+
+
+
+            List<string> errorCacheEntries = [];
+
+            DateTime currentTime = DateTime.UtcNow;
+            long unixTime = ((DateTimeOffset)currentTime).ToUnixTimeSeconds();
+
+            string exportFileName = Path.Combine(_appPaths.clientFolder, $"errorCacheExport-{unixTime}.txt");
+
+
+            foreach (ErrorCacheEntry entry in _entries)
+            {
+                errorCacheEntries.Add(entry.ToDetailed());
+            }
+
+
+
+            try
+            {
+                await File.WriteAllLinesAsync(exportFileName, [.. errorCacheEntries]);
+
+                Process.Start("notepad.exe", exportFileName);
+            }
+            catch
+            {
+                // TODO: Log exception and add error to error cache
+            }
+        }
+
         private static void DisplayZeroErrorSituation()
         {
         LabelDrawInformation:
 
 
-
+            
             Console.ForegroundColor = ConsoleColor.White;
             Console.WriteLine("              ┏┓          ┏┓   ┓   ");
             Console.WriteLine("              ┣ ┏┓┏┓┏┓┏┓  ┃ ┏┓┏┣┓┏┓");
