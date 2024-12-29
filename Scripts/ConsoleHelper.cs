@@ -68,7 +68,7 @@ namespace DataImportClient.Scripts
             return true;
         }
 
-        internal static async Task DisplayInformation(string title, string description, ConsoleColor titleColor, int durationInSeconds = 5)
+        internal static async Task DisplayInformation(string title, string description, ConsoleColor titleColor, int durationInSeconds = 3)
         {
             Console.Clear();
             Console.SetCursorPosition(0, 4);

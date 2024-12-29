@@ -102,7 +102,7 @@ namespace DataImportClient.Scripts
             Console.Clear();
 
         LabelDrawErrorCache:
-
+            
             Console.SetCursorPosition(0, 4);
 
 
@@ -245,8 +245,9 @@ namespace DataImportClient.Scripts
         {
         LabelDrawInformation:
 
+            Console.Clear();
+            Console.SetCursorPosition(0, 4);
 
-            
             Console.ForegroundColor = ConsoleColor.White;
             Console.WriteLine("              ┏┓          ┏┓   ┓   ");
             Console.WriteLine("              ┣ ┏┓┏┓┏┓┏┓  ┃ ┏┓┏┣┓┏┓");

@@ -106,9 +106,9 @@ namespace DataImportClient.Modules
         {
             ActivityLogger.Log(_currentSection, "Entering module 'Weather'.");
 
+
+
             Console.Clear();
-
-
 
         LabelDrawUi:
 
