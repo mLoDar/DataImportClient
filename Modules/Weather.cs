@@ -598,19 +598,19 @@ namespace DataImportClient.Modules
 
             try
             {
-                string queryNames = "longitude, latitude, weatherType, sunriseUnixSeconds, sunsetUnixSeconds, humidity, windSpeed, temperature";
-                string queryValues = "@longitude, @latitude, @weatherType, @sunriseUnixSeconds, @sunsetUnixSeconds, @humidity, @windSpeed, @temperature";
+                string queryNames = "longitude, latitude, weather_type, sunrise_unix_seconds, sunset_unix_seconds, humidity, windspeed, temperature";
+                string queryValues = "@longitude, @latitude, @weather_type, @sunrise_unix_seconds, @sunset_unix_seconds, @humidity, @windspeed, @temperature";
                 string insertDataQuery = $"INSERT INTO {dbTableName} ({queryNames}) VALUES ({queryValues});";
 
                 using SqlCommand insertCommand = new(insertDataQuery, databaseConnection);
 
                 insertCommand.Parameters.AddWithValue("@longitude", weatherData.longitude);
                 insertCommand.Parameters.AddWithValue("@latitude", weatherData.latitude);
-                insertCommand.Parameters.AddWithValue("@weatherType", weatherData.weatherType);
-                insertCommand.Parameters.AddWithValue("@sunriseUnixSeconds", weatherData.sunriseUnixSeconds);
-                insertCommand.Parameters.AddWithValue("@sunsetUnixSeconds", weatherData.sunsetUnixSeconds);
+                insertCommand.Parameters.AddWithValue("@weather_type", weatherData.weatherType);
+                insertCommand.Parameters.AddWithValue("@sunrise_unix_seconds", weatherData.sunriseUnixSeconds);
+                insertCommand.Parameters.AddWithValue("@sunset_unix_seconds", weatherData.sunsetUnixSeconds);
                 insertCommand.Parameters.AddWithValue("@humidity", weatherData.humidity);
-                insertCommand.Parameters.AddWithValue("@windSpeed", weatherData.windSpeed);
+                insertCommand.Parameters.AddWithValue("@windspeed", weatherData.windSpeed);
                 insertCommand.Parameters.AddWithValue("@temperature", weatherData.temperature);
 
                 await insertCommand.ExecuteNonQueryAsync(cancellationToken);

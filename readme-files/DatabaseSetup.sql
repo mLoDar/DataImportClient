@@ -41,16 +41,16 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name = 'Weather' AND xtype = 'U')
     BEGIN
 
         CREATE TABLE Weather (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            importDate DATE DEFAULT CAST(GETDATE() AS DATE),
-            importTime TIME(3) DEFAULT CAST(GETDATE() AS TIME(3)),
-            longitude DECIMAL(6, 4),
-            latitude DECIMAL(6, 4),
-            weatherType NVARCHAR(255) NULL,
-            sunriseUnixSeconds BIGINT NULL,
-            sunsetUnixSeconds BIGINT NULL,
+            weather_id INT IDENTITY(1,1) PRIMARY KEY,
+            weather_date DATE DEFAULT CAST(GETDATE() AS DATE),
+            weather_time TIME(3) DEFAULT CAST(GETDATE() AS TIME(3)),
+			weather_type NVARCHAR(100) NULL,
+            longitude DECIMAL(9, 6),
+            latitude DECIMAL(9, 6),
+            sunrise_unix_seconds BIGINT NULL,
+            sunset_unix_seconds BIGINT NULL,
             humidity DECIMAL(8, 2),
-            windSpeed DECIMAL(8, 2),
+            windspeed DECIMAL(8, 2),
             temperature DECIMAL(8, 2),
         );
 
