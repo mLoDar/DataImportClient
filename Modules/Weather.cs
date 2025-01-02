@@ -148,10 +148,12 @@ namespace DataImportClient.Modules
                     }
                     break;
 
-                case ConsoleKey.Backspace:
+                case ConsoleKey.Escape:
+                    ActivityLogger.Log(_currentSection, "Returning to the main menu via 'ESC'.");
                     return;
 
-                case ConsoleKey.Escape:
+                case ConsoleKey.Backspace:
+                    ActivityLogger.Log(_currentSection, "Returning to the main menu via 'BACKSPACE'.");
                     return;
 
                 default:
@@ -224,7 +226,7 @@ namespace DataImportClient.Modules
                     break;
 
                 case 4:
-                    ActivityLogger.Log(_currentSection, "Returning to the main menu.");
+                    ActivityLogger.Log(_currentSection, "Returning to the main menu via selection.");
                     return;
             }
 
