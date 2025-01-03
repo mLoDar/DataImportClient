@@ -254,7 +254,7 @@ namespace DataImportClient
         {
             Console.Clear();
             Console.SetCursorPosition(0, 4);
-            Console.WriteLine("             DataImportClient (C) made in Austria     ");
+            Console.WriteLine("             DataImportClient (C) Made in Austria     ");
             Console.WriteLine("             ─────────────────────────────────────────");
             Console.Write("             Starting modules, please be patient ");
 

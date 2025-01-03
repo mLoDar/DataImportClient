@@ -26,17 +26,41 @@ namespace DataImportClient.Modules
         private static string _formattedServiceRunning = string.Empty;
         private static string _formattedLastLogFileEntry = string.Empty;
 
+        private static Task _importWorker = new(() => { });
+        private static CancellationTokenSource _cancellationTokenSource = new();
+
 
 
         internal ModuleState State
         {
             get => _moduleState;
+            set
+            {
+                if (_moduleState != value)
+                {
+                    ActivityLogger.Log(_currentSection, $"Module state changed from '{_moduleState}' to '{value}'.");
+                    _moduleState = value;
+
+                    OnStateChange();
+                }
+            }
         }
+
+        internal event EventHandler? StateChanged;
+
+        protected virtual void OnStateChange()
+        {
+            StateChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+
 
         internal int ErrorCount
         {
             get => _errorCount;
         }
+
+
 
         internal Electricity()
         {
@@ -46,6 +70,13 @@ namespace DataImportClient.Modules
 
             _dateOfLastImport = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
             _dateOfLastLogFileEntry = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
+
+
+
+            _cancellationTokenSource = new();
+            CancellationToken cancellationToken = _cancellationTokenSource.Token;
+
+            _importWorker = Task.Run(() => ImportPlcData(cancellationToken));
         }
 
 
@@ -211,6 +242,25 @@ namespace DataImportClient.Modules
             {
                 _formattedLastLogFileEntry = $"\u001b[91mx\u001b[97m │ Updated at '\u001b[91m{_dateOfLastLogFileEntry}\u001b[97m'";
             }
+        }
+
+        private void ImportPlcData(CancellationToken cancellationToken)
+        {
+            ImportWorkerLog(string.Empty, true);
+            ImportWorkerLog("Starting a new import worker for the current module.");
+
+
+
+            while (true)
+            {
+
+            }
+        }
+
+        private static void ImportWorkerLog(string message, bool removePrefix = false)
+        {
+            ImportLogger.Log(_currentSection, message, removePrefix);
+            _dateOfLastLogFileEntry = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
         }
     }
 }
