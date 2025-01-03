@@ -50,6 +50,8 @@ namespace DataImportClient
 
 
 
+            await FakeLoadingProgress();
+
             Console.Clear();
 
         LabelDrawUi:
@@ -246,6 +248,21 @@ namespace DataImportClient
         private static void ModuleStateChanged(object sender, EventArgs e)
         {
             _someModuleStateChanged = true;
+        }
+
+        private static async Task FakeLoadingProgress()
+        {
+            Console.Clear();
+            Console.SetCursorPosition(0, 4);
+            Console.WriteLine("             DataImportClient (C) made in Austria     ");
+            Console.WriteLine("             ─────────────────────────────────────────");
+            Console.Write("             Starting modules, please be patient ");
+
+            for (int i = 0; i < 3; i++)
+            {
+                await Task.Delay(500);
+                Console.Write(". ");
+            }
         }
     }
 }
