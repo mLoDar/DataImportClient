@@ -163,7 +163,8 @@ namespace DataImportClient
                         },
                         ["electricity"] = new JObject()
                         {
-                            ["sourceFilePath"] = "path/to/source/file.csv",
+                            ["sourceFilePath"] = "path/to/source/file",
+                            ["sourceFilePattern"] = "FILENAME.EXTENSION",
                             ["dbTableName"] = "tableNameforImport",
                             ["refreshTimeInSeconds"] = "intervalInWhichTheSourceDataArrives"
                         },
