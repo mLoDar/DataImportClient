@@ -163,22 +163,24 @@ namespace DataImportClient
                         },
                         ["electricity"] = new JObject()
                         {
-                            ["sourceFilePath"] = "path/to/source/file",
+                            ["sourceFilePath"] = "folder/of/source/file",
                             ["sourceFilePattern"] = "FILENAME.EXTENSION",
+                            ["sourceFileInterval"] = "intervalInWhichTheSourceDataArrives",
                             ["dbTableName"] = "tableNameforImport",
-                            ["refreshTimeInSeconds"] = "intervalInWhichTheSourceDataArrives"
                         },
                         ["districtHeat"] = new JObject()
                         {
-                            ["sourceFilePath"] = "path/to/source/file.csv",
+                            ["sourceFilePath"] = "folder/of/source/file",
+                            ["sourceFilePattern"] = "FILENAME.EXTENSION",
+                            ["sourceFileInterval"] = "intervalInWhichTheSourceDataArrives",
                             ["dbTableName"] = "tableNameforImport",
-                            ["refreshTimeInSeconds"] = "intervalInWhichTheSourceDataArrives"
                         },
                         ["photovoltaic"] = new JObject()
                         {
-                            ["sourceFilePath"] = "path/to/source/file.csv",
+                            ["sourceFilePath"] = "folder/of/source/file",
+                            ["sourceFilePattern"] = "FILENAME.EXTENSION",
+                            ["sourceFileInterval"] = "intervalInWhichTheSourceDataArrives",
                             ["dbTableName"] = "tableNameforImport",
-                            ["refreshTimeInSeconds"] = "intervalInWhichTheSourceDataArrives"
                         }
                     };
 
