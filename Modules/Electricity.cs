@@ -12,6 +12,26 @@ using Microsoft.Data.SqlClient;
 
 namespace DataImportClient.Modules
 {
+    internal struct ElectricityConfiguration
+    {
+        internal string sourceFilePath;
+        internal string sourceFilePattern;
+        internal string sourceFileInterval;
+        internal string sqlConnectionString;
+        internal string dbTableNamePower;
+        internal string dbTableNamePowerfactor;
+
+
+        
+        internal readonly bool HoldsInvalidValues()
+        {
+            var stringFields = new string[] { sourceFilePath, sourceFilePattern, sourceFileInterval, sqlConnectionString, dbTableNamePower, dbTableNamePowerfactor };
+            return stringFields.Any(string.IsNullOrEmpty);
+        }
+    }
+
+
+
     internal class Electricity
     {
         private const string _currentSection = "ModuleElectricity";
@@ -261,7 +281,7 @@ namespace DataImportClient.Modules
             {
                 ImportWorkerLog("Fetching settings from configuration file.");
                 
-                (string[] sourceFileInformation, string sqlConnectionString, string[] dbTableNames, Exception? occuredError) = await GetConfigurationValues();
+                (ElectricityConfiguration electricityConfiguration, Exception? occuredError) = await GetConfigurationValues();
 
                 if (occuredError != null)
                 {
@@ -281,9 +301,9 @@ namespace DataImportClient.Modules
 
 
 
-                string sourceFilePath = sourceFileInformation[0];
-                string sourceFilePattern = sourceFileInformation[1];
-                string sourceFileInterval = sourceFileInformation[2];
+                string sourceFilePath = electricityConfiguration.sourceFilePath;
+                string sourceFilePattern = electricityConfiguration.sourceFilePattern;
+                string sourceFileInterval = electricityConfiguration.sourceFileInterval;
 
                 int apiSleepTimer = Convert.ToInt32(sourceFileInterval) * 1000;
 
@@ -339,7 +359,11 @@ namespace DataImportClient.Modules
 
                 ImportWorkerLog("Inserting the minimized data set into the database.");
 
-                occuredError = await InsertDataIntoDatabase(sqlConnectionString, dbTableNames, minimizedSourceData, cancellationToken);
+                string dbTableNamePower = electricityConfiguration.dbTableNamePower;
+                string dbTableNamePowerfactor = electricityConfiguration.dbTableNamePowerfactor;
+                string sqlConnectionString = electricityConfiguration.sqlConnectionString;
+
+                occuredError = await InsertDataIntoDatabase(sqlConnectionString, dbTableNamePower, dbTableNamePowerfactor, minimizedSourceData, cancellationToken);
 
                 if (occuredError != null)
                 {
@@ -377,7 +401,7 @@ namespace DataImportClient.Modules
             }
         }
 
-        private static async Task<(string[] sourceFileInformation, string sqlConnectionString, string[] dbTableNames, Exception? occuredError)> GetConfigurationValues()
+        private static async Task<(ElectricityConfiguration electricityConfiguration, Exception? occuredError)> GetConfigurationValues()
         {
             JObject savedConfiguration;
 
@@ -392,7 +416,7 @@ namespace DataImportClient.Modules
             }
             catch (Exception exception)
             {
-                return ([], string.Empty, [], exception);
+                return (new ElectricityConfiguration(), exception);
             }
 
 
@@ -426,67 +450,39 @@ namespace DataImportClient.Modules
             }
             catch (Exception exception)
             {
-                return ([], string.Empty, [], exception);
+                return (new ElectricityConfiguration(), exception);
             }
 
 
-
-            string sourceFilePath;
-            string sourceFilePattern;
-            string sourceFileInterval;
-            string sqlConnectionString;
-            string dbTableNamePower;
-            string dbTableNamePowerFactor;
 
             try
             {
-                sourceFilePath = electricityModule?["sourceFilePath"]?.ToString() ?? string.Empty;
-                sourceFilePattern = electricityModule?["sourceFilePattern"]?.ToString() ?? string.Empty;
-                sourceFileInterval = electricityModule?["sourceFileInterval"]?.ToString() ?? string.Empty;
-                sqlConnectionString = sqlData?["connectionString"]?.ToString() ?? string.Empty;
-                dbTableNamePower = electricityModule?["dbTableNamePower"]?.ToString() ?? string.Empty;
-                dbTableNamePowerFactor = electricityModule?["dbTableNamePowerfactor"]?.ToString() ?? string.Empty;
-
-                if (new string[] { sourceFilePath, sourceFilePattern, sourceFileInterval, sqlConnectionString, dbTableNamePower, dbTableNamePowerFactor }.Contains(null))
+                ElectricityConfiguration electricityConfiguration = new()
                 {
-                    throw new Exception("One or mulitple SQL values or settings are null. Please check the configuration file!");
+                    sourceFilePath = electricityModule?["sourceFilePath"]?.ToString() ?? string.Empty,
+                    sourceFilePattern = electricityModule?["sourceFilePattern"]?.ToString() ?? string.Empty,
+                    sourceFileInterval = electricityModule?["sourceFileInterval"]?.ToString() ?? string.Empty,
+                    sqlConnectionString = sqlData?["connectionString"]?.ToString() ?? string.Empty,
+                    dbTableNamePower = electricityModule?["dbTableNamePower"]?.ToString() ?? string.Empty,
+                    dbTableNamePowerfactor = electricityModule?["dbTableNamePowerfactor"]?.ToString() ?? string.Empty
+                };
+
+                if (electricityConfiguration.HoldsInvalidValues() == true)
+                {
+                    throw new Exception("One or mulitple configuration values are null. Please check the configuration file!");
                 }
 
-                if (new string[] { sourceFilePath, sourceFilePattern, sourceFileInterval, sqlConnectionString, dbTableNamePower, dbTableNamePowerFactor }.Contains(string.Empty))
+                if (int.TryParse(electricityConfiguration.sourceFileInterval, out int _) == false)
                 {
-                    throw new Exception($"One or mulitple SQL values or settings are an empty string. Please check the configuration file!");
+                    throw new Exception("Failed to parse the provided source file interval to a number.");
                 }
+
+                return (electricityConfiguration, null);
             }
             catch (Exception exception)
             {
-                return ([], string.Empty, [], exception);
+                return (new ElectricityConfiguration(), exception);
             }
-
-
-
-            if (int.TryParse(sourceFileInterval, out int _) == false)
-            {
-                return ([], string.Empty, [], new Exception("Failed to parse the provided source file interval to a number."));
-            }
-
-
-
-            string[] sourceFileInformation =
-            [
-                sourceFilePath,
-                sourceFilePattern,
-                sourceFileInterval,
-            ];
-
-            string[] dbTableNames =
-            [
-                dbTableNamePower,
-                dbTableNamePowerFactor
-            ];
-
-
-
-            return (sourceFileInformation, sqlConnectionString, dbTableNames, null);
         }
         
         private static async Task<(List<string> sourceData, bool foundMultipleFiles, Exception? occuredError)> GetSourceFileData(string sourceFilePath, string sourceFilePattern)
@@ -724,10 +720,10 @@ namespace DataImportClient.Modules
             return (minimizedSourceData, null);
         }
 
-        private static async Task<Exception?> InsertDataIntoDatabase(string sqlConnectionString, string[] dbTableNames, List<string> sourceData, CancellationToken cancellationToken)
+        private static async Task<Exception?> InsertDataIntoDatabase(string sqlConnectionString, string dbTableNamePower, string dbTableNamePowerfactor, List<string> sourceData, CancellationToken cancellationToken)
         {
             (List<string> powerData, List<string> powerfactorData, Exception? occuredError) = SplitSourceData(sourceData);
-
+            
             if (occuredError != null)
             {
                 return new Exception("Failed to split the minimalized data set. " + occuredError.Message);
@@ -749,11 +745,6 @@ namespace DataImportClient.Modules
             }
 
             ImportWorkerLog("Successfully established a database connection.");
-
-
-
-            string dbTableNamePower = dbTableNames[0];
-            string dbTableNamePowerfactor = dbTableNames[1];
 
 
 

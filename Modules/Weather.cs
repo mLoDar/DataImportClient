@@ -25,6 +25,24 @@ namespace DataImportClient.Modules
         internal int sunriseUnixSeconds;
     }
 
+    internal struct WeatherConfiguration
+    {
+        internal string apiUrl;
+        internal string apiKey;
+        internal string apiLocation;
+        internal string apiIntervalSeconds;
+        internal string sqlConnectionString;
+        internal string dbTableName;
+
+
+
+        internal readonly bool HoldsInvalidValues()
+        {
+            var stringFields = new string[] { apiUrl, apiKey, apiLocation, apiIntervalSeconds, sqlConnectionString, dbTableName };
+            return stringFields.Any(string.IsNullOrEmpty);
+        }
+    }
+
 
 
     internal class Weather
@@ -322,7 +340,7 @@ namespace DataImportClient.Modules
             {
                 ImportWorkerLog("Fetching settings from configuration file.");
 
-                (string[] apiConfiguration, string sqlConnectionString, string dbTableName, Exception? occuredError) = await GetConfigurationValues();
+                (WeatherConfiguration weatherConfiguration, Exception? occuredError) = await GetConfigurationValues();
 
                 if (occuredError != null)
                 {
@@ -342,10 +360,10 @@ namespace DataImportClient.Modules
 
 
 
-                string apiUrl = apiConfiguration[0];
-                string apiKey = apiConfiguration[1];
-                string apiLocation = apiConfiguration[2];
-                string apiIntervalSeconds = apiConfiguration[3];
+                string apiUrl = weatherConfiguration.apiUrl;
+                string apiKey = weatherConfiguration.apiKey;
+                string apiLocation = weatherConfiguration.apiLocation;
+                string apiIntervalSeconds = weatherConfiguration.apiIntervalSeconds;
 
                 apiUrl += $"?q={apiLocation}&appid={apiKey}&mode=json&units=metric";
                 int apiSleepTimer = Convert.ToInt32(apiIntervalSeconds) * 1000;
@@ -376,7 +394,7 @@ namespace DataImportClient.Modules
 
                 ImportWorkerLog("Inserting the fetched data set into the database.");
 
-                occuredError = await InsertDataIntoDatabase(sqlConnectionString, dbTableName, weatherData, cancellationToken);
+                occuredError = await InsertDataIntoDatabase(weatherConfiguration.sqlConnectionString, weatherConfiguration.dbTableName, weatherData, cancellationToken);
 
                 if (occuredError != null)
                 {
@@ -405,7 +423,7 @@ namespace DataImportClient.Modules
             }
         }
 
-        private static async Task<(string[] apiConfiguration, string sqlConnectionString, string dbTableName, Exception? occuredError)> GetConfigurationValues()
+        private static async Task<(WeatherConfiguration weatherConfiguration, Exception? occuredError)> GetConfigurationValues()
         {
             JObject savedConfiguration;
 
@@ -420,7 +438,7 @@ namespace DataImportClient.Modules
             }
             catch (Exception exception)
             {
-                return (Array.Empty<string>(), string.Empty, string.Empty, exception);
+                return (new WeatherConfiguration(), exception);
             }
 
 
@@ -454,60 +472,39 @@ namespace DataImportClient.Modules
             }
             catch (Exception exception)
             {
-                return (Array.Empty<string>(), string.Empty, string.Empty, exception);
+                return (new WeatherConfiguration(), exception);
             }
 
 
-
-            string apiUrl;
-            string apiKey;
-            string apiLocation;
-            string apiIntervalSeconds;
-            string sqlConnectionString;
-            string dbTableName;
 
             try
             {
-                apiUrl = weatherModule?["apiUrl"]?.ToString() ?? string.Empty;
-                apiKey = weatherModule?["apiKey"]?.ToString() ?? string.Empty;
-                apiLocation = weatherModule?["apiLocation"]?.ToString() ?? string.Empty;
-                apiIntervalSeconds = weatherModule?["apiIntervalSeconds"]?.ToString() ?? string.Empty;
-                sqlConnectionString = sqlData?["connectionString"]?.ToString() ?? string.Empty;
-                dbTableName = weatherModule?["dbTableName"]?.ToString() ?? string.Empty;
-
-                if (new string[] { apiUrl, apiKey, apiLocation, apiIntervalSeconds, sqlConnectionString, dbTableName }.Contains(null))
+                WeatherConfiguration weatherConfiguration = new()
                 {
-                    throw new Exception("One or mulitple API or SQL values are null. Please check the configuration file!");
+                    apiUrl = weatherModule?["apiUrl"]?.ToString() ?? string.Empty,
+                    apiKey = weatherModule?["apiKey"]?.ToString() ?? string.Empty,
+                    apiLocation = weatherModule?["apiLocation"]?.ToString() ?? string.Empty,
+                    apiIntervalSeconds = weatherModule?["apiIntervalSeconds"]?.ToString() ?? string.Empty,
+                    sqlConnectionString = sqlData?["connectionString"]?.ToString() ?? string.Empty,
+                    dbTableName = weatherModule?["dbTableName"]?.ToString() ?? string.Empty
+                };
+
+                if (weatherConfiguration.HoldsInvalidValues() == true)
+                {
+                    throw new Exception("One or mulitple configuration values are null. Please check the configuration file!");
                 }
 
-                if (new string[] { apiUrl, apiKey, apiLocation, apiIntervalSeconds, sqlConnectionString, dbTableName }.Contains(string.Empty))
+                if (int.TryParse(weatherConfiguration.apiIntervalSeconds, out int _) == false)
                 {
-                    throw new Exception("One or mulitple API or SQL values are an empty string. Please check the configuration file!");
+                    throw new Exception("Failed to parse the provided API interval to a number.");
                 }
+
+                return (weatherConfiguration, null);
             }
             catch (Exception exception)
             {
-                return (Array.Empty<string>(), string.Empty, string.Empty, exception);
+                return (new WeatherConfiguration(), exception);
             }
-
-
-
-            if (int.TryParse(apiIntervalSeconds, out int _) == false)
-            {
-                return (Array.Empty<string>(), string.Empty, string.Empty, new Exception("Failed to parse the provided API interval to a number."));
-            }
-
-
-
-            string[] apiConfiguration =
-            [
-                apiUrl,
-                apiKey,
-                apiLocation,
-                apiIntervalSeconds,
-            ];
-
-            return (apiConfiguration, sqlConnectionString, dbTableName, null);
         }
 
         private static async Task<(WeatherData weatherData, Exception? occuredError)> FetchApiData(string apiUrl, CancellationToken cancellationToken)
