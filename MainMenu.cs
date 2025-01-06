@@ -47,6 +47,7 @@ namespace DataImportClient
             ActivityLogger.Log(_currentSection, "Entering main menu.");
 
             _moduleWeather.StateChanged += ModuleStateChanged;
+            _moduleElectricity.StateChanged += ModuleStateChanged;
 
 
 

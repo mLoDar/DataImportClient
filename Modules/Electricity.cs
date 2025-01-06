@@ -1,6 +1,10 @@
 ﻿using System.Globalization;
 
 using DataImportClient.Scripts;
+using DataImportClient.Ressources;
+
+using Newtonsoft.Json.Linq;
+using Microsoft.Data.SqlClient;
 
 
 
@@ -11,7 +15,7 @@ namespace DataImportClient.Modules
     internal class Electricity
     {
         private const string _currentSection = "ModuleElectricity";
-        
+
         private ModuleState _moduleState;
         private static bool _serviceRunning;
         private static int _errorCount;
@@ -244,17 +248,678 @@ namespace DataImportClient.Modules
             }
         }
 
-        private void ImportPlcData(CancellationToken cancellationToken)
+        private async Task ImportPlcData(CancellationToken cancellationToken)
         {
             ImportWorkerLog(string.Empty, true);
             ImportWorkerLog("Starting a new import worker for the current module.");
+
+            int errorTimoutInMilliseconds = 5 * 30 * 1000;
 
 
 
             while (true)
             {
+                ImportWorkerLog("Fetching settings from configuration file.");
+                
+                (string[] sourceFileInformation, string sqlConnectionString, string[] dbTableNames, Exception? occuredError) = await GetConfigurationValues();
 
+                if (occuredError != null)
+                {
+                    ImportWorkerLog("[ERROR] - An error has occured while fetching the settings.");
+                    ImportWorkerLog(occuredError.Message, true);
+
+                    MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, "An error has occured while fetching the settings.", occuredError.Message);
+
+                    State = ModuleState.Error;
+                    _errorCount++;
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
+
+                ImportWorkerLog("Successfully fetched settings.");
+
+
+
+                string sourceFilePath = sourceFileInformation[0];
+                string sourceFilePattern = sourceFileInformation[1];
+                string sourceFileInterval = sourceFileInformation[2];
+
+                int apiSleepTimer = Convert.ToInt32(sourceFileInterval) * 1000;
+
+
+
+            LabelRestartAsMultipleFiles:
+
+
+
+                ImportWorkerLog("Trying to fetch data from a PLC source file.");
+
+                (List<string> sourceFileData, bool foundMultipleFiles, occuredError) = await GetSourceFileData(sourceFilePath, sourceFilePattern);
+
+                if (occuredError != null)
+                {
+                    ImportWorkerLog("[ERROR] - An error has occured while fetching data form the PLC source file.");
+                    ImportWorkerLog(occuredError.Message, true);
+
+                    MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, "An error has occured while fetching data form the PLC source file.", occuredError.Message);
+
+                    State = ModuleState.Error;
+                    _errorCount++;
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
+
+                ImportWorkerLog("Successfully fetched the data set from a source file.");
+
+
+
+                ImportWorkerLog("Minimizing the fetched data.");
+
+                (List<string> minimizedSourceData, occuredError) = MinimizeSourceFileData(sourceFileData);
+
+                if (occuredError != null)
+                {
+                    ImportWorkerLog("[ERROR] - An error has occured while minimizing the fetched data.");
+                    ImportWorkerLog(occuredError.Message, true);
+
+                    MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, "An error has occured while minimizing the fetched data.", occuredError.Message);
+
+                    State = ModuleState.Error;
+                    _errorCount++;
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
+
+                ImportWorkerLog("Successfully minimized the data set.");
+
+
+
+                ImportWorkerLog("Inserting the minimized data set into the database.");
+
+                occuredError = await InsertDataIntoDatabase(sqlConnectionString, dbTableNames, minimizedSourceData, cancellationToken);
+
+                if (occuredError != null)
+                {
+                    ImportWorkerLog("[ERROR] - An error has occured while inserting the data into the database.");
+                    ImportWorkerLog(occuredError.Message, true);
+
+                    MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, " An error has occured while inserting the data into the database.", occuredError.Message);
+
+                    State = ModuleState.Error;
+                    _errorCount++;
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
+
+                ImportWorkerLog("Successfully inserted the data set into the database.");
+
+
+
+                _dateOfLastImport = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
+
+
+
+                if (foundMultipleFiles == true)
+                {
+                    ImportWorkerLog($"Restarting import process immediately, as there were multiple source files.");
+                    goto LabelRestartAsMultipleFiles;
+                }
+
+
+
+                ImportWorkerLog($"Going to sleep for {apiSleepTimer / 1000} seconds.");
+
+                await Task.Delay(apiSleepTimer, cancellationToken);
             }
+        }
+
+        private static async Task<(string[] sourceFileInformation, string sqlConnectionString, string[] dbTableNames, Exception? occuredError)> GetConfigurationValues()
+        {
+            JObject savedConfiguration;
+
+            try
+            {
+                savedConfiguration = await ConfigurationHelper.LoadConfiguration();
+
+                if (savedConfiguration["error"] != null)
+                {
+                    throw new Exception($"Saved configuration file contains errors. Error: {savedConfiguration["error"]}");
+                }
+            }
+            catch (Exception exception)
+            {
+                return ([], string.Empty, [], exception);
+            }
+
+
+
+            JObject modules;
+            JObject electricityModule;
+            JObject sqlData;
+
+            try
+            {
+                modules = savedConfiguration["modules"] as JObject ?? [];
+
+                if (modules == null || modules == new JObject())
+                {
+                    throw new Exception("Configuration file does not contain a 'modules' object.");
+                }
+
+                electricityModule = modules?["electricity"] as JObject ?? [];
+
+                if (electricityModule == null || electricityModule == new JObject())
+                {
+                    throw new Exception("Configuration file does not contain a 'electricity' module.");
+                }
+
+                sqlData = savedConfiguration["sql"] as JObject ?? [];
+
+                if (sqlData == null || sqlData == new JObject())
+                {
+                    throw new Exception("Configuration file does not contain a 'sql' object.");
+                }
+            }
+            catch (Exception exception)
+            {
+                return ([], string.Empty, [], exception);
+            }
+
+
+
+            string sourceFilePath;
+            string sourceFilePattern;
+            string sourceFileInterval;
+            string sqlConnectionString;
+            string dbTableNamePower;
+            string dbTableNamePowerFactor;
+
+            try
+            {
+                sourceFilePath = electricityModule?["sourceFilePath"]?.ToString() ?? string.Empty;
+                sourceFilePattern = electricityModule?["sourceFilePattern"]?.ToString() ?? string.Empty;
+                sourceFileInterval = electricityModule?["sourceFileInterval"]?.ToString() ?? string.Empty;
+                sqlConnectionString = sqlData?["connectionString"]?.ToString() ?? string.Empty;
+                dbTableNamePower = electricityModule?["dbTableNamePower"]?.ToString() ?? string.Empty;
+                dbTableNamePowerFactor = electricityModule?["dbTableNamePowerfactor"]?.ToString() ?? string.Empty;
+
+                if (new string[] { sourceFilePath, sourceFilePattern, sourceFileInterval, sqlConnectionString, dbTableNamePower, dbTableNamePowerFactor }.Contains(null))
+                {
+                    throw new Exception("One or mulitple SQL values or settings are null. Please check the configuration file!");
+                }
+
+                if (new string[] { sourceFilePath, sourceFilePattern, sourceFileInterval, sqlConnectionString, dbTableNamePower, dbTableNamePowerFactor }.Contains(string.Empty))
+                {
+                    throw new Exception($"One or mulitple SQL values or settings are an empty string. Please check the configuration file!");
+                }
+            }
+            catch (Exception exception)
+            {
+                return ([], string.Empty, [], exception);
+            }
+
+
+
+            if (int.TryParse(sourceFileInterval, out int _) == false)
+            {
+                return ([], string.Empty, [], new Exception("Failed to parse the provided source file interval to a number."));
+            }
+
+
+
+            string[] sourceFileInformation =
+            [
+                sourceFilePath,
+                sourceFilePattern,
+                sourceFileInterval,
+            ];
+
+            string[] dbTableNames =
+            [
+                dbTableNamePower,
+                dbTableNamePowerFactor
+            ];
+
+
+
+            return (sourceFileInformation, sqlConnectionString, dbTableNames, null);
+        }
+        
+        private static async Task<(List<string> sourceData, bool foundMultipleFiles, Exception? occuredError)> GetSourceFileData(string sourceFilePath, string sourceFilePattern)
+        {
+            bool multipleSourceFilesFound = false;
+
+            if (Directory.Exists(sourceFilePath) == false)
+            {
+                return ([], multipleSourceFilesFound, new Exception("Failed to find the source file folder path specified in the configuration."));
+            }
+
+
+
+            List<string> fileMatches = [];
+            string[] filesInSourcePath = Directory.GetFiles(sourceFilePath);
+
+            foreach (string file in filesInSourcePath)
+            {
+                string fileName = sourceFilePattern.Split(".")[0].ToLower();
+                string fileExtension = $".{sourceFilePattern.Split(".")[1]}";
+
+                if (file.EndsWith(fileExtension) == false)
+                {
+                    continue;
+                }
+
+                if (file.Split(@"\").Last().Contains(fileName, StringComparison.CurrentCultureIgnoreCase) == false)
+                {
+                    continue;
+                }
+
+                fileMatches.Add(file);
+            }
+
+
+
+            if (fileMatches.Count <= 0)
+            {
+                return ([], multipleSourceFilesFound, new Exception("Failed to find any source files which match the configuration."));
+            }
+
+            if (fileMatches.Count > 1)
+            {
+                multipleSourceFilesFound = true;
+            }
+
+
+
+            string[] sourceFileData;
+
+            try
+            {
+                sourceFileData = await File.ReadAllLinesAsync(fileMatches[0]);
+            }
+            catch (Exception exception)
+            {
+                return ([], multipleSourceFilesFound, exception);
+            }
+
+
+
+            List<string> finalSourceFileData = [];
+
+            for (int i = 1; i < sourceFileData.Length; i++)
+            {
+                if (i == sourceFileData.Length - 1)
+                {
+                    continue;
+                }
+
+                string currentRow = sourceFileData[i];
+                currentRow = RegexPatterns.AllWhitespaces().Replace(currentRow, string.Empty);
+
+                finalSourceFileData.Add(currentRow);
+            }
+
+
+
+            return (finalSourceFileData, multipleSourceFilesFound, null);
+        }
+        
+        private static (List<string> minimizedSourceData, Exception? occuredError) MinimizeSourceFileData(List<string> sourceData)
+        {
+            int valuesPerRow = 0;
+            int valuesPerColumn = 0;
+
+            try
+            {
+                valuesPerRow = sourceData.Select(line => line.Split(';')[1]).Distinct().Count();
+                valuesPerColumn = sourceData[0].Split(';').Length - 1;
+            }
+            catch (Exception exception)
+            {
+                return ([], new Exception("Unable to calculate count per row or column. " + exception.Message));
+            }
+
+            string[,] newDataArray = new string[valuesPerRow, valuesPerColumn];
+
+
+
+            int currentSecondIndex = 0;
+            string currentSecond = string.Empty;
+            
+            string[,] allCurrentSecondValues = new string[0, 0];
+            int allCurrentSecondValuesCurrentIndexY = 0;
+
+
+            
+            while (sourceData.Count > 0)
+            {
+                string currentRow = sourceData[0];
+                currentRow = RegexPatterns.AllWhitespaces().Replace(currentRow, string.Empty);
+                currentRow = currentRow[..^1];
+
+                List<string> splittedRowData = currentRow.Split(';').ToList();
+
+                string currentRowDate = splittedRowData[0];
+                string currentRowTime = splittedRowData[1];
+                splittedRowData.RemoveRange(0, 2);
+
+
+
+            LabelStartOver:
+
+
+
+                if (currentSecond.Equals(string.Empty))
+                {
+                    currentSecond = currentRowTime;
+
+                    int allCurrentSecondValuesHeight = sourceData.Select(row => row.Split(';')).Where(splittedRow => splittedRow[1].Equals(currentSecond)).ToList().Count;
+                    int allCurrentSecondValuesWidth = splittedRowData.Count + 2;
+
+                    allCurrentSecondValues = new string[allCurrentSecondValuesHeight, allCurrentSecondValuesWidth];
+                }
+
+
+
+                if (currentSecond.Equals(currentRowTime) == false && currentSecond.Equals(string.Empty) == false)
+                {
+                    for (int x = 2; x < allCurrentSecondValues.GetLength(1); x++)
+                    {
+                        decimal sum = 0;
+
+                        for (int y = 0; y < allCurrentSecondValues.GetLength(0); y++)
+                        {
+                            sum += Convert.ToDecimal(allCurrentSecondValues[y, x].Replace(".", ","));
+                        }
+
+                        decimal average = sum / allCurrentSecondValues.GetLength(0);
+
+                        newDataArray[currentSecondIndex, 0] = allCurrentSecondValues[0, 0];
+                        newDataArray[currentSecondIndex, 1] = allCurrentSecondValues[0, 1];
+                        newDataArray[currentSecondIndex, x] = Math.Round(average, 2).ToString();
+                    }
+
+
+
+                    currentSecond = string.Empty;
+                    allCurrentSecondValuesCurrentIndexY = 0;
+                    currentSecondIndex++;
+
+                    goto LabelStartOver;
+
+                }
+
+
+
+                allCurrentSecondValues[allCurrentSecondValuesCurrentIndexY, 0] = currentRowDate;
+                allCurrentSecondValues[allCurrentSecondValuesCurrentIndexY, 1] = currentRowTime;
+
+
+
+                for (int i = 0; i < splittedRowData.Count; i++)
+                {
+                    allCurrentSecondValues[allCurrentSecondValuesCurrentIndexY, i + 2] = splittedRowData[i];
+                }
+
+                allCurrentSecondValuesCurrentIndexY++;
+
+                sourceData.RemoveAt(0);
+
+
+
+                if (sourceData.Count == 0)
+                {
+                    for (int x = 2; x < allCurrentSecondValues.GetLength(1); x++)
+                    {
+                        decimal sum = 0;
+
+                        for (int y = 0; y < allCurrentSecondValues.GetLength(0); y++)
+                        {
+                            sum += Convert.ToDecimal(allCurrentSecondValues[y, x].Replace(".", ","));
+                        }
+
+                        decimal average = sum / allCurrentSecondValues.GetLength(0);
+
+                        newDataArray[currentSecondIndex, 0] = allCurrentSecondValues[0, 0];
+                        newDataArray[currentSecondIndex, 1] = allCurrentSecondValues[0, 1];
+                        newDataArray[currentSecondIndex, x] = Math.Round(average, 2).ToString();
+                    }
+
+
+
+                    currentSecond = string.Empty;
+                    allCurrentSecondValuesCurrentIndexY = 0;
+                    currentSecondIndex++;
+                }
+            }
+
+
+            List<string> minimizedSourceData = [];
+
+            try
+            {
+                for (int y = 0; y < newDataArray.GetLength(0); y++)
+                {
+                    string currentRow = string.Empty;
+
+                    for (int x = 0; x < newDataArray.GetLength(1); x++)
+                    {
+                        currentRow += newDataArray[y, x] + ";";
+                    }
+
+                    currentRow = currentRow[..^1];
+
+                    minimizedSourceData.Add(currentRow);
+                }
+            }
+            catch (Exception exception)
+            {
+                return ([], new Exception("Unable to fill minimized source data. " + exception.Message));
+            }
+            
+            return (minimizedSourceData, null);
+        }
+
+        private static async Task<Exception?> InsertDataIntoDatabase(string sqlConnectionString, string[] dbTableNames, List<string> sourceData, CancellationToken cancellationToken)
+        {
+            (List<string> powerData, List<string> powerfactorData, Exception? occuredError) = SplitSourceData(sourceData);
+
+            if (occuredError != null)
+            {
+                return new Exception("Failed to split the minimalized data set. " + occuredError.Message);
+            }
+
+            ImportWorkerLog("Splitted the minimalized data set for the database import.");
+
+
+
+            SqlConnection databaseConnection = new(sqlConnectionString);
+
+            try
+            {
+                await databaseConnection.OpenAsync(cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                return new Exception("Failed to establish a database connection. " + exception.Message);
+            }
+
+            ImportWorkerLog("Successfully established a database connection.");
+
+
+
+            string dbTableNamePower = dbTableNames[0];
+            string dbTableNamePowerfactor = dbTableNames[1];
+
+
+
+            ImportWorkerLog($"Inserting a total of '{sourceData.Count}' entries into the database.");
+            
+            while (powerData.Count > 0)
+            {
+                string currentPowerDataRow = powerData[0];
+                string currentPowerfactorDataRow = powerfactorData[0];
+
+                DateTime importDate;
+                TimeSpan importTime;
+
+                try
+                {
+                    string powerDate = currentPowerDataRow.Split(';')[0];
+                    string powerTime = currentPowerDataRow.Split(';')[1];
+
+                    importDate = DateTime.ParseExact(powerDate, "dd.MM.yyyy", CultureInfo.InvariantCulture);
+                    importTime = TimeSpan.ParseExact(powerTime, @"hh\:mm\:ss", CultureInfo.InvariantCulture);
+
+                    powerData.RemoveAt(0);
+                    powerfactorData.RemoveAt(0);
+
+                    currentPowerDataRow = currentPowerDataRow.Replace($"{powerDate};{powerTime};", string.Empty);
+                    currentPowerfactorDataRow = currentPowerfactorDataRow.Replace($"{powerDate};{powerTime};", string.Empty);
+                }
+                catch (Exception exception)
+                {
+                    return new Exception("Failed to convert date and/or time. " + exception.Message);
+                }
+
+
+
+                string[] columnsOrder =
+                [
+                    "@einspeisung_L1",
+                    "@einspeisung_L2",
+                    "@einspeisung_L3",
+                    "@werkstatterweiterung_L1",
+                    "@werkstatterweiterung_L2",
+                    "@werkstatterweiterung_L3",
+                    "@flur_zimmerei_L1",
+                    "@flur_zimmerei_L2",
+                    "@flur_zimmerei_L3",
+                    "@flur_tischlerei_L1",
+                    "@flur_tischlerei_L2",
+                    "@flur_tischlerei_L3",
+                    "@absaugung_tischlerei_L1",
+                    "@absaugung_tischlerei_L2",
+                    "@absaugung_tischlerei_L3",
+                    "@theorie_L1",
+                    "@theorie_L2",
+                    "@theorie_L3",
+                    "@tischlerei_L1",
+                    "@tischlerei_L2",
+                    "@tischlerei_L3",
+                    "@keller_L1",
+                    "@keller_L2",
+                    "@keller_L3",
+                    "@absaugung_steinmetz_L1",
+                    "@absaugung_steinmetz_L2",
+                    "@absaugung_steinmetz_L3"
+                ];
+
+
+
+                using SqlTransaction transaction = databaseConnection.BeginTransaction();
+
+                try
+                {
+                    string queryNamesPower = "power_date, power_time, " + string.Join(", ", columnsOrder).Replace("@", string.Empty);
+                    string queryValuesPower = "@power_date, @power_time, " + string.Join(", ", columnsOrder);
+                    string queryInsertPower = $"INSERT INTO {dbTableNamePower} ({queryNamesPower}) VALUES ({queryValuesPower}); SELECT SCOPE_IDENTITY();";
+                    
+                    using SqlCommand insertCommandPower = new(queryInsertPower, databaseConnection, transaction);
+
+                    insertCommandPower.Parameters.AddWithValue("@power_date", importDate);
+                    insertCommandPower.Parameters.AddWithValue("@power_time", importTime);
+
+                    for (int columnIndex = 0; columnIndex < columnsOrder.Length; columnIndex++)
+                    {
+                        insertCommandPower.Parameters.AddWithValue(columnsOrder[columnIndex], Convert.ToDecimal(currentPowerDataRow.Split(";")[columnIndex]));
+                    }
+
+                    int lastPowerId = -1;
+
+                    lastPowerId = Convert.ToInt32(await insertCommandPower.ExecuteScalarAsync(cancellationToken));
+
+                    if (lastPowerId == -1)
+                    {
+                        throw new Exception("Failed to get last inserted PowerId.");
+                    }
+
+
+
+                    string queryNamesPowerfactor = "powerfactor_date, powerfactor_time, power_id, " + string.Join(", ", columnsOrder).Replace("@", string.Empty);
+                    string queryValuesPowerfactor = "@powerfactor_date, @powerfactor_time, @power_id, " + string.Join(", ", columnsOrder);
+                    string queryInsertPowerfactor = $"INSERT INTO {dbTableNamePowerfactor} ({queryNamesPowerfactor}) VALUES ({queryValuesPowerfactor}); SELECT SCOPE_IDENTITY();";
+
+                    using SqlCommand insertCommandPowerfactor = new(queryInsertPowerfactor, databaseConnection, transaction);
+
+                    insertCommandPowerfactor.Parameters.AddWithValue("@powerfactor_date", importDate);
+                    insertCommandPowerfactor.Parameters.AddWithValue("@powerfactor_time", importTime);
+                    insertCommandPowerfactor.Parameters.AddWithValue("@power_id", lastPowerId);
+
+                    for (int columnIndex = 0; columnIndex < columnsOrder.Length; columnIndex++)
+                    {
+                        insertCommandPowerfactor.Parameters.AddWithValue(columnsOrder[columnIndex], Convert.ToDecimal(currentPowerfactorDataRow.Split(";")[columnIndex]));
+                    }
+
+                    await insertCommandPowerfactor.ExecuteNonQueryAsync(cancellationToken);
+
+                    transaction.Commit();
+                }
+                catch (Exception exception)
+                {
+                    transaction.Rollback();
+
+                    return new Exception($"Failed to import a row of the data set. Remaining elements: '{powerData.Count}'. " + exception.Message);
+                }
+            }
+
+
+
+            return null;
+        }
+
+        private static (List<string> powerData, List<string> powerfactorData, Exception? occuredError) SplitSourceData(List<string> sourceData)
+        {
+            List<string> powerData = [];
+            List<string> powerfactorData = [];
+
+            foreach (string dataRow in sourceData)
+            {
+                string[] splittedRow = dataRow.Split(';');
+
+                string newPowerDataRow = string.Empty;
+                string newPowerfactorDataRow = string.Empty;
+
+                for (int i = 0; i < splittedRow.Length; i++)
+                {
+                    if (i == 0 || i == 1)
+                    {
+                        newPowerDataRow += splittedRow[i] + ";";
+                        newPowerfactorDataRow += splittedRow[i] + ";";
+                        continue;
+                    }
+
+                    if (i % 2 == 0)
+                    {
+                        newPowerfactorDataRow += splittedRow[i] + ";";
+                        continue;
+                    }
+
+                    newPowerDataRow += splittedRow[i] + ";";
+                }
+
+                newPowerDataRow = newPowerDataRow[..^1];
+                newPowerfactorDataRow = newPowerfactorDataRow[..^1];
+
+                powerData.Add(newPowerDataRow);
+                powerfactorData.Add(newPowerfactorDataRow);
+            }
+
+            return (powerData, powerfactorData, null);
         }
 
         private static void ImportWorkerLog(string message, bool removePrefix = false)

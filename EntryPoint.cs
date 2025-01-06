@@ -166,7 +166,8 @@ namespace DataImportClient
                             ["sourceFilePath"] = "folder/of/source/file",
                             ["sourceFilePattern"] = "FILENAME.EXTENSION",
                             ["sourceFileInterval"] = "intervalInWhichTheSourceDataArrives",
-                            ["dbTableName"] = "tableNameforImport",
+                            ["dbTableNamePower"] = "tableNameforImport",
+                            ["dbTableNamePowerfactor"] = "tableNameforImport",
                         },
                         ["districtHeat"] = new JObject()
                         {

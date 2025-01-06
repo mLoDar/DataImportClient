@@ -118,10 +118,10 @@ GO
 
 
 
-IF NOT EXISTS (SELECT * FROM sysobjects WHERE name = 'ElectricityPowerFactor' AND xtype = 'U')
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name = 'ElectricityPowerfactor' AND xtype = 'U')
     BEGIN
 	
-        CREATE TABLE ElectricityPowerFactor (
+        CREATE TABLE ElectricityPowerfactor (
             powerfactor_id INT IDENTITY(1,1) PRIMARY KEY,
 			powerfactor_date DATE DEFAULT CAST(GETDATE() AS DATE),
 			powerfactor_time TIME(3) DEFAULT CAST(GETDATE() AS TIME(3)),
@@ -156,13 +156,13 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name = 'ElectricityPowerFactor' AN
 			werkstatterweiterung_L3 DECIMAL(3, 2),
         );
 
-        PRINT 'Successfully created a new table named "ElectricityPowerFactor".';
+        PRINT 'Successfully created a new table named "ElectricityPowerfactor".';
 
     END
 ELSE
     BEGIN
 
-        PRINT 'Skipping the creation of the table "ElectricityPowerFactor" as it already exists. Please check if the table contains all needed columns.';
+        PRINT 'Skipping the creation of the table "ElectricityPowerfactor" as it already exists. Please check if the table contains all needed columns.';
 
     END
 
