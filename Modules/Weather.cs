@@ -6,6 +6,7 @@ using DataImportClient.Ressources;
 
 using Newtonsoft.Json.Linq;
 using Microsoft.Data.SqlClient;
+using System.Threading;
 
 
 
@@ -344,14 +345,9 @@ namespace DataImportClient.Modules
 
                 if (occuredError != null)
                 {
-                    ImportWorkerLog("[ERROR] - An error has occured while fetching the settings.");
-                    ImportWorkerLog(occuredError.Message, true);
-
-                    MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, "An error has occured while fetching the settings.", occuredError.Message);
-
-                    State = ModuleState.Error;
-                    _errorCount++;
-
+                    string errorMessage = "An error has occured while fetching the settings.";
+                    ThrowModuleError(errorMessage, occuredError.Message);
+                    
                     await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
                     continue;
                 }
@@ -376,13 +372,8 @@ namespace DataImportClient.Modules
 
                 if (occuredError != null)
                 {
-                    ImportWorkerLog("[ERROR] - An error has occured while fetching data from the API provider.");
-                    ImportWorkerLog(occuredError.Message, true);
-
-                    MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, "An error has occured while fetching data from the API provider.", occuredError.Message);
-
-                    State = ModuleState.Error;
-                    _errorCount++;
+                    string errorMessage = "An error has occured while fetching data from the API provider.";
+                    ThrowModuleError(errorMessage, occuredError.Message);
 
                     await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
                     continue;
@@ -398,13 +389,8 @@ namespace DataImportClient.Modules
 
                 if (occuredError != null)
                 {
-                    ImportWorkerLog("[ERROR] - An error has occured while inserting the data into the database.");
-                    ImportWorkerLog(occuredError.Message, true);
-
-                    MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, " An error has occured while inserting the data into the database.", occuredError.Message);
-
-                    State = ModuleState.Error;
-                    _errorCount++;
+                    string errorMessage = "An error has occured while inserting the data into the database.";
+                    ThrowModuleError(errorMessage, occuredError.Message);
 
                     await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
                     continue;
@@ -626,6 +612,17 @@ namespace DataImportClient.Modules
         {
             ImportLogger.Log(_currentSection, message, removePrefix);
             _dateOfLastLogFileEntry = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
+        }
+
+        private void ThrowModuleError(string errorMessage, string detailedError)
+        {
+            ImportWorkerLog($"[ERROR] - {errorMessage}");
+            ImportWorkerLog(detailedError, true);
+
+            MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, errorMessage, detailedError);
+
+            State = ModuleState.Error;
+            _errorCount++;
         }
     }
 }
