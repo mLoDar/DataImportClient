@@ -6,7 +6,6 @@ using DataImportClient.Ressources;
 
 using Newtonsoft.Json.Linq;
 using Microsoft.Data.SqlClient;
-using System.Threading;
 
 
 
