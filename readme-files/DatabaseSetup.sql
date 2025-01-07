@@ -170,7 +170,35 @@ GO
 
 
 
--- TODO: Create "DistrictHeat" table
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name = 'DistrictHeat' AND xtype = 'U')
+    BEGIN
+	
+        CREATE TABLE DistrictHeat (
+            heatimport_id INT IDENTITY(1,1) PRIMARY KEY,
+			heatimport_date DATE DEFAULT CAST(GETDATE() AS DATE),
+			heatimport_time TIME(3) DEFAULT CAST(GETDATE() AS TIME(3)),
+			zaehler_id DECIMAL(12, 2),
+			energie DECIMAL(12, 2),
+			volumen DECIMAL(12, 2),
+			leistung DECIMAL(12, 2),
+			durchfluss DECIMAL(12, 2),
+			vorlauf DECIMAL(12, 2),
+			ruecklauf DECIMAL(12, 2),
+        );
+
+        PRINT 'Successfully created a new table named "DistrictHeat".';
+
+    END
+ELSE
+    BEGIN
+
+        PRINT 'Skipping the creation of the table "DistrictHeat" as it already exists. Please check if the table contains all needed columns.';
+
+    END
+
+GO
+
+
 
 -- TODO: Create "Photovoltaic" table
 
