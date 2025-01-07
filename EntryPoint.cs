@@ -159,22 +159,22 @@ namespace DataImportClient
                             ["apiKey"] = "yourApiKey",
                             ["apiLocation"] = "City,CountryCode",
                             ["apiIntervalSeconds"] = 300,
-                            ["dbTableName"] = "tableNameforImport"
+                            ["dbTableName"] = "dbo.Weather"
                         },
                         ["electricity"] = new JObject()
                         {
                             ["sourceFilePath"] = "folder/of/source/file",
                             ["sourceFilePattern"] = "FILENAME.EXTENSION",
                             ["sourceFileInterval"] = "intervalInWhichTheSourceDataArrives",
-                            ["dbTableNamePower"] = "tableNameforImport",
-                            ["dbTableNamePowerfactor"] = "tableNameforImport",
+                            ["dbTableNamePower"] = "dbo.ElectricityPower",
+                            ["dbTableNamePowerfactor"] = "dbo.ElectricityPowerfactor",
                         },
                         ["districtHeat"] = new JObject()
                         {
                             ["sourceFilePath"] = "folder/of/source/file",
                             ["sourceFilePattern"] = "FILENAME.EXTENSION",
                             ["sourceFileInterval"] = "intervalInWhichTheSourceDataArrives",
-                            ["dbTableName"] = "tableNameforImport",
+                            ["dbTableName"] = "dbo.DistrictHeat",
                         },
                         ["photovoltaic"] = new JObject()
                         {
