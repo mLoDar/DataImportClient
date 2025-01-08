@@ -15,7 +15,7 @@ namespace DataImportClient.Scripts
 
 
 
-        internal static async Task<(bool successfullySaved, Exception occurredError)> SaveConfiguration(JObject applicationConfiguration)
+        internal static async Task<Exception?> SaveConfiguration(JObject applicationConfiguration)
         {
             try
             {
@@ -26,10 +26,10 @@ namespace DataImportClient.Scripts
             }
             catch (Exception exception)
             {
-                return (false, exception);
+                return exception;
             }
 
-            return (true, new Exception());
+            return null;
         }
 
         internal static async Task<JObject> LoadConfiguration()

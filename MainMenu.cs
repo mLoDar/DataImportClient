@@ -1,6 +1,8 @@
 ﻿using DataImportClient.Modules;
 using DataImportClient.Scripts;
 
+using Newtonsoft.Json.Linq;
+
 
 
 
@@ -37,8 +39,28 @@ namespace DataImportClient
         private static string _statePhotovoltaic = string.Empty;
 
         private static bool _someModuleStateChanged = false;
+        private static bool _emailAlertsActive = false;
 
         private static ConsoleKey _pressedKey = ConsoleKey.None;
+
+
+
+        internal static bool EmailAlerts
+        {
+            get
+            {
+                GetEmailAlertState();
+
+                return _emailAlertsActive;
+            }
+            set
+            {
+                if (_emailAlertsActive != value)
+                {
+                    SetEmailAlertState(value);
+                }
+            }
+        }
 
 
 
@@ -263,6 +285,77 @@ namespace DataImportClient
             {
                 await Task.Delay(500);
                 Console.Write(". ");
+            }
+        }
+
+        private static void SetEmailAlertState(bool newFeatureState)
+        {
+            try
+            {
+                JObject savedConfiguration = ConfigurationHelper.LoadConfiguration().Result;
+
+                if (savedConfiguration["error"] != null)
+                {
+                    throw new Exception(Convert.ToString(savedConfiguration["error"]));
+                }
+
+
+
+                JObject emailAlerts = savedConfiguration["emailAlerts"] as JObject ?? [];
+
+                if (emailAlerts == null || emailAlerts == new JObject())
+                {
+                    throw new Exception("The 'emailAlerts' variable within the configuration file is empty or not existing.");
+                }
+
+
+
+                emailAlerts["featureActive"] = newFeatureState;
+                savedConfiguration["emailAlerts"] = emailAlerts;
+
+                Exception? occuredError = ConfigurationHelper.SaveConfiguration(savedConfiguration).Result;
+
+                if (occuredError != null)
+                {
+                    throw new Exception("Could not save configuration file. " + occuredError.Message);
+                }
+
+
+
+                ActivityLogger.Log(_currentSection, $"The email alert state was changed from '{!newFeatureState}' to '{newFeatureState}'.");
+
+                _emailAlertsActive = newFeatureState;
+            }
+            catch (Exception exception)
+            {
+                ActivityLogger.Log(_currentSection, "[ERROR] - Failed to set email alert state:");
+                ActivityLogger.Log(_currentSection, exception.Message, true);
+
+                _emailAlertsActive = false;
+            }
+        }
+
+        private static void GetEmailAlertState()
+        {
+            try
+            {
+                JObject savedConfiguration = ConfigurationHelper.LoadConfiguration().Result;
+
+                if (savedConfiguration["error"] != null)
+                {
+                    throw new Exception(Convert.ToString(savedConfiguration["error"]));
+                }
+
+                bool featureState = Convert.ToBoolean(savedConfiguration["emailAlerts"]?["featureActive"]);
+
+                _emailAlertsActive = featureState;
+            }
+            catch (Exception exception)
+            {
+                ActivityLogger.Log(_currentSection, "[ERROR] - Failed to set email alert state:");
+                ActivityLogger.Log(_currentSection, exception.Message, true);
+
+                _emailAlertsActive = false;
             }
         }
     }

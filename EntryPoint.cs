@@ -190,7 +190,11 @@ namespace DataImportClient
                     {
                         ["connectionString"] = "theConnectionStringToTheDatabase"
                     };
-                    appConfiguration["emailsToAlert"] = new JArray();
+                    appConfiguration["emailAlerts"] = new JObject()
+                    {
+                        ["featureActive"] = false,
+                        ["emailsToAlert"] = new JArray(),
+                    };
 
 
 
