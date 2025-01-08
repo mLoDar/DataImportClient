@@ -17,7 +17,7 @@ namespace DataImportClient.Modules
     {
         internal string sourceFilePath;
         internal string sourceFilePattern;
-        internal string sourceFileInterval;
+        internal string sourceFileIntervalSeconds;
         internal string sqlConnectionString;
         internal string dbTableNamePower;
         internal string dbTableNamePowerfactor;
@@ -26,7 +26,7 @@ namespace DataImportClient.Modules
         
         internal readonly bool HoldsInvalidValues()
         {
-            var stringFields = new string[] { sourceFilePath, sourceFilePattern, sourceFileInterval, sqlConnectionString, dbTableNamePower, dbTableNamePowerfactor };
+            var stringFields = new string[] { sourceFilePath, sourceFilePattern, sourceFileIntervalSeconds, sqlConnectionString, dbTableNamePower, dbTableNamePowerfactor };
             return stringFields.Any(string.IsNullOrEmpty);
         }
     }
@@ -346,9 +346,9 @@ namespace DataImportClient.Modules
 
                 string sourceFilePath = electricityConfiguration.sourceFilePath;
                 string sourceFilePattern = electricityConfiguration.sourceFilePattern;
-                string sourceFileInterval = electricityConfiguration.sourceFileInterval;
+                string sourceFileIntervalSeconds = electricityConfiguration.sourceFileIntervalSeconds;
 
-                int apiSleepTimer = Convert.ToInt32(sourceFileInterval) * 1000;
+                int apiSleepTimer = Convert.ToInt32(sourceFileIntervalSeconds) * 1000;
 
 
 
@@ -489,7 +489,7 @@ namespace DataImportClient.Modules
                 {
                     sourceFilePath = electricityModule?["sourceFilePath"]?.ToString() ?? string.Empty,
                     sourceFilePattern = electricityModule?["sourceFilePattern"]?.ToString() ?? string.Empty,
-                    sourceFileInterval = electricityModule?["sourceFileInterval"]?.ToString() ?? string.Empty,
+                    sourceFileIntervalSeconds = electricityModule?["sourceFileIntervalSeconds"]?.ToString() ?? string.Empty,
                     sqlConnectionString = sqlData?["connectionString"]?.ToString() ?? string.Empty,
                     dbTableNamePower = electricityModule?["dbTableNamePower"]?.ToString() ?? string.Empty,
                     dbTableNamePowerfactor = electricityModule?["dbTableNamePowerfactor"]?.ToString() ?? string.Empty
@@ -500,7 +500,7 @@ namespace DataImportClient.Modules
                     throw new Exception("One or mulitple configuration values are null. Please check the configuration file!");
                 }
 
-                if (int.TryParse(electricityConfiguration.sourceFileInterval, out int _) == false)
+                if (int.TryParse(electricityConfiguration.sourceFileIntervalSeconds, out int _) == false)
                 {
                     throw new Exception("Failed to parse the provided source file interval to a number.");
                 }

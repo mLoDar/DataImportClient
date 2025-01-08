@@ -165,7 +165,7 @@ namespace DataImportClient
                         {
                             ["sourceFilePath"] = "folder/of/source/file",
                             ["sourceFilePattern"] = "FILENAME.EXTENSION",
-                            ["sourceFileInterval"] = "intervalInWhichTheSourceDataArrives",
+                            ["sourceFileIntervalSeconds"] = 125,
                             ["dbTableNamePower"] = "dbo.ElectricityPower",
                             ["dbTableNamePowerfactor"] = "dbo.ElectricityPowerfactor",
                         },
@@ -173,14 +173,14 @@ namespace DataImportClient
                         {
                             ["sourceFilePath"] = "folder/of/source/file",
                             ["sourceFilePattern"] = "FILENAME.EXTENSION",
-                            ["sourceFileInterval"] = "intervalInWhichTheSourceDataArrives",
+                            ["sourceFileIntervalSeconds"] = 300,
                             ["dbTableName"] = "dbo.DistrictHeat",
                         },
                         ["photovoltaic"] = new JObject()
                         {
                             ["sourceFilePath"] = "folder/of/source/file",
                             ["sourceFilePattern"] = "FILENAME.EXTENSION",
-                            ["sourceFileInterval"] = "intervalInWhichTheSourceDataArrives",
+                            ["sourceFileIntervalSeconds"] = 300,
                             ["dbTableName"] = "tableNameforImport",
                         }
                     };
@@ -188,7 +188,7 @@ namespace DataImportClient
                     appConfiguration["modules"] = modules;
                     appConfiguration["sql"] = new JObject()
                     {
-                        ["connectionString"] = "theConnectionStringForTheImportDatabase"
+                        ["connectionString"] = "theConnectionStringToTheDatabase"
                     };
                     appConfiguration["emailsToAlert"] = new JArray();
 
