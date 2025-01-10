@@ -9,7 +9,6 @@ namespace DataImportClient.Scripts
     internal class ActivityLogger
     {
         private static readonly ApplicationSettings.Paths _appPaths = new();
-        private static readonly ApplicationSettings.Runtime _appRuntime = new();
 
 
 

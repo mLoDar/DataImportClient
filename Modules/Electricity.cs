@@ -51,7 +51,9 @@ namespace DataImportClient.Modules
         private static string _formattedServiceRunning = string.Empty;
         private static string _formattedLastLogFileEntry = string.Empty;
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "<Pending>")]
         private static Task _importWorker = new(() => { });
+
         private static CancellationTokenSource _cancellationTokenSource = new();
 
         private static readonly ApplicationSettings.Paths _appPaths = new();
@@ -84,6 +86,7 @@ namespace DataImportClient.Modules
 
 
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "<Pending>")]
         internal int ErrorCount
         {
             get => _errorCount;
@@ -660,7 +663,7 @@ namespace DataImportClient.Modules
                 currentRow = RegexPatterns.AllWhitespaces().Replace(currentRow, string.Empty);
                 currentRow = currentRow[..^1];
 
-                List<string> splittedRowData = currentRow.Split(';').ToList();
+                List<string> splittedRowData = [.. currentRow.Split(';')];
 
                 string currentRowDate = splittedRowData[0];
                 string currentRowTime = splittedRowData[1];

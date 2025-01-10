@@ -268,7 +268,7 @@ namespace DataImportClient
             _someModuleStateChanged = false;
         }
 
-        private static void ModuleStateChanged(object sender, EventArgs e)
+        private static void ModuleStateChanged(object? sender, EventArgs e)
         {
             _someModuleStateChanged = true;
         }

@@ -63,7 +63,9 @@ namespace DataImportClient.Modules
         private static string _formattedServiceRunning = string.Empty;
         private static string _formattedLastLogFileEntry = string.Empty;
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "<Pending>")]
         private static Task _importWorker = new(() => {});
+
         private static CancellationTokenSource _cancellationTokenSource = new();
 
         private static readonly ApplicationSettings.Paths _appPaths = new();
@@ -94,6 +96,7 @@ namespace DataImportClient.Modules
 
 
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "<Pending>")]
         internal int ErrorCount
         {
             get => _errorCount;
@@ -346,7 +349,9 @@ namespace DataImportClient.Modules
                 {
                     string errorMessage = "An error has occured while fetching the settings.";
                     ThrowModuleError(errorMessage, occuredError.Message);
-                    
+
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
+
                     await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
                     continue;
                 }
@@ -374,6 +379,8 @@ namespace DataImportClient.Modules
                     string errorMessage = "An error has occured while fetching data from the API provider.";
                     ThrowModuleError(errorMessage, occuredError.Message);
 
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
+
                     await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
                     continue;
                 }
@@ -390,6 +397,8 @@ namespace DataImportClient.Modules
                 {
                     string errorMessage = "An error has occured while inserting the data into the database.";
                     ThrowModuleError(errorMessage, occuredError.Message);
+
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
 
                     await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
                     continue;
