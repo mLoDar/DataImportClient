@@ -56,6 +56,8 @@ namespace DataImportClient.Modules
 
         private static readonly ApplicationSettings.Paths _appPaths = new();
 
+        private static string _currentSourceFilePath = string.Empty;
+
 
 
         internal ModuleState State
@@ -336,6 +338,8 @@ namespace DataImportClient.Modules
                     string errorMessage = "An error has occured while fetching the settings.";
                     ThrowModuleError(errorMessage, occuredError.Message);
 
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
+
                     await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
                     continue;
                 }
@@ -365,6 +369,10 @@ namespace DataImportClient.Modules
                     string errorMessage = "An error has occured while fetching data form the PLC source file.";
                     ThrowModuleError(errorMessage, occuredError.Message);
 
+                    MoveSourceFileToFaultyFilesFolder();
+
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
+
                     await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
                     continue;
                 }
@@ -381,6 +389,10 @@ namespace DataImportClient.Modules
                 {
                     string errorMessage = "An error has occured while minimizing the fetched data.";
                     ThrowModuleError(errorMessage, occuredError.Message);
+
+                    MoveSourceFileToFaultyFilesFolder();
+
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
 
                     await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
                     continue;
@@ -403,6 +415,10 @@ namespace DataImportClient.Modules
                     string errorMessage = "An error has occured while inserting the data into the database.";
                     ThrowModuleError(errorMessage, occuredError.Message);
 
+                    MoveSourceFileToFaultyFilesFolder();
+
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
+
                     await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
                     continue;
                 }
@@ -411,7 +427,24 @@ namespace DataImportClient.Modules
 
 
 
+                ImportWorkerLog("Trying to delete the current source file.");
+
+                try
+                {
+                    File.Delete(_currentSourceFilePath);
+                }
+                catch (Exception exception)
+                {
+                    string errorMessage = "Failed to delete the source file.";
+                    ThrowModuleError(errorMessage, exception.Message);
+                }
+
+                ImportWorkerLog("Successfully deleted the source file.");
+
+
+
                 _dateOfLastImport = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
+                _currentSourceFilePath = string.Empty;
 
 
 
@@ -559,11 +592,13 @@ namespace DataImportClient.Modules
 
 
 
+            _currentSourceFilePath = fileMatches[0];
+
             string[] sourceFileData;
 
             try
             {
-                sourceFileData = await File.ReadAllLinesAsync(fileMatches[0]);
+                sourceFileData = await File.ReadAllLinesAsync(_currentSourceFilePath);
             }
             catch (Exception exception)
             {
@@ -757,19 +792,37 @@ namespace DataImportClient.Modules
                 return new Exception("Failed to split the minimalized data set. " + occuredError.Message);
             }
 
-            ImportWorkerLog("Splitted the minimalized data set for the database import.");
+            ImportWorkerLog("Successfully splitted the minimalized data set for the database import.");
 
 
 
-            SqlConnection databaseConnection = new(sqlConnectionString);
+            ImportWorkerLog("Trying to establish a database connection.");
+
+            SqlConnection databaseConnection;
 
             try
             {
+                if (sqlConnectionString.Contains("connect timeout", StringComparison.CurrentCultureIgnoreCase) == false)
+                {
+                    sqlConnectionString += "Connect Timeout=5;";
+                }
+
+                databaseConnection = new(sqlConnectionString);
+
                 await databaseConnection.OpenAsync(cancellationToken);
+            }
+            catch (SqlException exception)
+            {
+                if (exception.Number == -2)
+                {
+                    return new Exception("Failed to establish a database connection due to a timeout.");
+                }
+
+                return new Exception("Failed to establish a database connection. " + exception.Message);
             }
             catch (Exception exception)
             {
-                return new Exception("Failed to establish a database connection. " + exception.Message);
+                return new Exception("An error occurred while connection to the database. " + exception.Message);
             }
 
             ImportWorkerLog("Successfully established a database connection.");
@@ -956,6 +1009,29 @@ namespace DataImportClient.Modules
 
             State = ModuleState.Error;
             _errorCount++;
+        }
+
+        private void MoveSourceFileToFaultyFilesFolder()
+        {
+            ImportWorkerLog("Trying to move the current source file to faulty files folder.");
+
+            try
+            {
+                string unixTimestampSeconds = DateTimeOffset.Now.ToUnixTimeSeconds().ToString();
+
+                string electricityFaultyFilesFolder = _appPaths.electricityFaultyFilesFolder;
+                string destinationFile = Path.Combine(electricityFaultyFilesFolder, $"dataset_{unixTimestampSeconds}.csv");
+
+                File.Move(_currentSourceFilePath, destinationFile);
+
+                _currentSourceFilePath = string.Empty;
+
+                ImportWorkerLog("Successfully moved the source file.");
+            }
+            catch (Exception exception)
+            {
+                ThrowModuleError("Failed to move the current source file.", exception.Message + $" File path: {_currentSourceFilePath}.");
+            }
         }
     }
 }
