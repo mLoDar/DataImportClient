@@ -209,27 +209,39 @@ namespace DataImportClient.Modules
                         ImportWorkerLog("Stopping the active import worker of the current module.");
 
                         _cancellationTokenSource?.Cancel();
-                        State = ModuleState.Stopped;
+                        _moduleState = ModuleState.Stopped;
                         _serviceRunning = false;
                         break;
                     }
 
-                    _cancellationTokenSource = new();
+                    ActivityLogger.Log(_currentSection, "Starting a new import worker for the current module.");
+                    ImportWorkerLog(string.Empty, true);
+                    ImportWorkerLog("Starting a new import worker for the current module.");
 
+
+
+                    if (ErrorCount <= 0)
+                    {
+                        _moduleState = ModuleState.Running;
+                    }
+
+                    _cancellationTokenSource = new();
                     CancellationToken cancellationToken = _cancellationTokenSource.Token;
-                    State = ModuleState.Running;
+
                     _serviceRunning = true;
 
                     _importWorker = Task.Run(() => ImportPlcData(cancellationToken));
 
-                    ActivityLogger.Log(_currentSection, "Starting a new import worker for the current module.");
-                    ImportWorkerLog(string.Empty, true);
-                    ImportWorkerLog("Starting a new import worker for the current module.");
                     break;
 
                 case 3:
                     ActivityLogger.Log(_currentSection, $"Clearing errors for the current module. Previous error count: '{_errorCount}'.");
-                    State = ModuleState.Running;
+
+                    if (State != ModuleState.Stopped)
+                    {
+                        _moduleState = ModuleState.Running;
+                    }
+
                     _errorCount = 0;
 
                     MainMenu._sectionMiscellaneous.errorCache.RemoveSectionFromCache(_currentSection);

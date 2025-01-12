@@ -72,7 +72,7 @@ namespace DataImportClient
             _moduleElectricity.StateChanged += ModuleStateChanged;
 
 
-
+            
             await FakeLoadingProgress();
 
             Console.Clear();
@@ -102,7 +102,7 @@ namespace DataImportClient
 
             CancellationTokenSource cancellationTokenSource = new();
             CancellationToken cancellationToken = cancellationTokenSource.Token;
-
+            
             Task keyPressListener = ListenForKeyPress(cancellationToken);
             Task moduelChangeListener = ListenForModuleChange(cancellationToken);
 
@@ -253,6 +253,8 @@ namespace DataImportClient
                 }
 
                 _pressedKey = Console.ReadKey(true).Key;
+
+                _someModuleStateChanged = false;
 
                 return;
             }
