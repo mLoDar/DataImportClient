@@ -1,6 +1,10 @@
 ﻿using System.Globalization;
 
+using DataImportClient.Ressources;
 using DataImportClient.Scripts;
+
+using Newtonsoft.Json.Linq;
+using Microsoft.Data.SqlClient;
 
 
 
@@ -8,6 +12,25 @@ using DataImportClient.Scripts;
 
 namespace DataImportClient.Modules
 {
+    internal struct DistrictHeatConfiguration
+    {
+        internal string sourceFilePath;
+        internal string sourceFilePattern;
+        internal string sourceFileIntervalSeconds;
+        internal string sqlConnectionString;
+        internal string dbTableName;
+
+
+
+        internal readonly bool HoldsInvalidValues()
+        {
+            var stringFields = new string[] { sourceFilePath, sourceFilePattern, sourceFileIntervalSeconds, sqlConnectionString, dbTableName };
+            return stringFields.Any(string.IsNullOrEmpty);
+        }
+    }
+
+
+
     internal class DistrictHeat
     {
         private const string _currentSection = "ModuleDisctrictHeat";
@@ -25,6 +48,15 @@ namespace DataImportClient.Modules
         private static string _formattedErrorCount = string.Empty;
         private static string _formattedServiceRunning = string.Empty;
         private static string _formattedLastLogFileEntry = string.Empty;
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "<Pending>")]
+        private static Task _importWorker = new(() => { });
+
+        private static CancellationTokenSource _cancellationTokenSource = new();
+
+        private static readonly ApplicationSettings.Paths _appPaths = new();
+
+        private static string _currentSourceFilePath = string.Empty;
 
 
 
@@ -68,6 +100,13 @@ namespace DataImportClient.Modules
 
             _dateOfLastImport = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
             _dateOfLastLogFileEntry = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
+
+
+
+            _cancellationTokenSource = new();
+            CancellationToken cancellationToken = _cancellationTokenSource.Token;
+
+            _importWorker = Task.Run(() => ImportPlcData(cancellationToken));
         }
 
 
@@ -231,6 +270,466 @@ namespace DataImportClient.Modules
             else
             {
                 _formattedLastLogFileEntry = $"\u001b[91mx\u001b[97m │ Updated at '\u001b[91m{_dateOfLastLogFileEntry}\u001b[97m'";
+            }
+        }
+
+        private async Task ImportPlcData(CancellationToken cancellationToken)
+        {
+            ImportWorkerLog(string.Empty, true);
+            ImportWorkerLog("Starting a new import worker for the current module.");
+
+            int errorTimoutInMilliseconds = 5 * 30 * 1000;
+
+
+
+            while (true)
+            {
+                ImportWorkerLog("Fetching settings from configuration file.");
+
+                (DistrictHeatConfiguration districtHeatConfiguration, Exception? occuredError) = await GetConfigurationValues();
+
+                if (occuredError != null)
+                {
+                    string errorMessage = "An error has occured while fetching the settings.";
+                    ThrowModuleError(errorMessage, occuredError.Message);
+
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
+
+                ImportWorkerLog("Successfully fetched settings.");
+
+
+
+                string sourceFilePath = districtHeatConfiguration.sourceFilePath;
+                string sourceFilePattern = districtHeatConfiguration.sourceFilePattern;
+                string sourceFileIntervalSeconds = districtHeatConfiguration.sourceFileIntervalSeconds;
+
+                int apiSleepTimer = Convert.ToInt32(sourceFileIntervalSeconds) * 1000;
+
+
+
+            LabelRestartAsMultipleFiles:
+
+
+
+                ImportWorkerLog("Trying to fetch data from a PLC source file.");
+
+                (List<string> sourceFileData, bool foundMultipleFiles, occuredError) = await GetSourceFileData(sourceFilePath, sourceFilePattern);
+
+                if (occuredError != null)
+                {
+                    string errorMessage = "An error has occured while fetching data form the PLC source file.";
+                    ThrowModuleError(errorMessage, occuredError.Message);
+
+                    MoveSourceFileToFaultyFilesFolder();
+
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
+
+                ImportWorkerLog("Successfully fetched the data set from a source file.");
+
+
+
+                ImportWorkerLog("Inserting the fetched data set into the database.");
+
+                string dbTableName = districtHeatConfiguration.dbTableName;
+                string sqlConnectionString = districtHeatConfiguration.sqlConnectionString;
+
+                occuredError = await InsertDataIntoDatabase(sqlConnectionString, dbTableName, sourceFileData, cancellationToken);
+
+                if (occuredError != null)
+                {
+                    string errorMessage = "An error has occured while inserting the data into the database.";
+                    ThrowModuleError(errorMessage, occuredError.Message);
+
+                    MoveSourceFileToFaultyFilesFolder();
+
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
+
+                ImportWorkerLog("Successfully inserted the data set into the database.");
+
+
+
+                ImportWorkerLog("Trying to delete the current source file.");
+
+                try
+                {
+                    File.Delete(_currentSourceFilePath);
+                }
+                catch (Exception exception)
+                {
+                    string errorMessage = "Failed to delete the source file.";
+                    ThrowModuleError(errorMessage, exception.Message);
+                }
+
+                ImportWorkerLog("Successfully deleted the source file.");
+
+
+
+                _dateOfLastImport = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
+                _currentSourceFilePath = string.Empty;
+
+
+
+                if (foundMultipleFiles == true)
+                {
+                    ImportWorkerLog($"Restarting import process immediately, as there were multiple source files.");
+                    goto LabelRestartAsMultipleFiles;
+                }
+
+
+
+                ImportWorkerLog($"Going to sleep for {apiSleepTimer / 1000} seconds.");
+
+                await Task.Delay(apiSleepTimer, cancellationToken);
+            }
+        }
+
+        private static async Task<(DistrictHeatConfiguration districtHeatConfiguration, Exception? occuredError)> GetConfigurationValues()
+        {
+            JObject savedConfiguration;
+
+            try
+            {
+                savedConfiguration = await ConfigurationHelper.LoadConfiguration();
+
+                if (savedConfiguration["error"] != null)
+                {
+                    throw new Exception($"Saved configuration file contains errors. Error: {savedConfiguration["error"]}");
+                }
+            }
+            catch (Exception exception)
+            {
+                return (new DistrictHeatConfiguration(), exception);
+            }
+
+
+
+            JObject modules;
+            JObject districtHeatModule;
+            JObject sqlData;
+
+            try
+            {
+                modules = savedConfiguration["modules"] as JObject ?? [];
+
+                if (modules == null || modules == new JObject())
+                {
+                    throw new Exception("Configuration file does not contain a 'modules' object.");
+                }
+
+                districtHeatModule = modules?["districtHeat"] as JObject ?? [];
+
+                if (districtHeatModule == null || districtHeatModule == new JObject())
+                {
+                    throw new Exception("Configuration file does not contain a 'districtHeat' module.");
+                }
+
+                sqlData = savedConfiguration["sql"] as JObject ?? [];
+
+                if (sqlData == null || sqlData == new JObject())
+                {
+                    throw new Exception("Configuration file does not contain a 'sql' object.");
+                }
+            }
+            catch (Exception exception)
+            {
+                return (new DistrictHeatConfiguration(), exception);
+            }
+
+
+
+            try
+            {
+                DistrictHeatConfiguration districtHeatConfiguration = new()
+                {
+                    sourceFilePath = districtHeatModule?["sourceFilePath"]?.ToString() ?? string.Empty,
+                    sourceFilePattern = districtHeatModule?["sourceFilePattern"]?.ToString() ?? string.Empty,
+                    sourceFileIntervalSeconds = districtHeatModule?["sourceFileIntervalSeconds"]?.ToString() ?? string.Empty,
+                    sqlConnectionString = sqlData?["connectionString"]?.ToString() ?? string.Empty,
+                    dbTableName = districtHeatModule?["dbTableName"]?.ToString() ?? string.Empty,
+                };
+
+                if (districtHeatConfiguration.HoldsInvalidValues() == true)
+                {
+                    throw new Exception("One or mulitple configuration values are null. Please check the configuration file!");
+                }
+
+                if (int.TryParse(districtHeatConfiguration.sourceFileIntervalSeconds, out int _) == false)
+                {
+                    throw new Exception("Failed to parse the provided source file interval to a number.");
+                }
+
+                return (districtHeatConfiguration, null);
+            }
+            catch (Exception exception)
+            {
+                return (new DistrictHeatConfiguration(), exception);
+            }
+        }
+
+        private static async Task<(List<string> sourceData, bool foundMultipleFiles, Exception? occuredError)> GetSourceFileData(string sourceFilePath, string sourceFilePattern)
+        {
+            bool multipleSourceFilesFound = false;
+
+            if (Directory.Exists(sourceFilePath) == false)
+            {
+                return ([], multipleSourceFilesFound, new Exception("Failed to find the source file folder path specified in the configuration."));
+            }
+
+
+
+            List<string> fileMatches = [];
+            string[] filesInSourcePath = Directory.GetFiles(sourceFilePath);
+
+            foreach (string file in filesInSourcePath)
+            {
+                string fileName = sourceFilePattern.Split(".")[0].ToLower();
+                string fileExtension = $".{sourceFilePattern.Split(".")[1]}";
+
+                if (file.EndsWith(fileExtension) == false)
+                {
+                    continue;
+                }
+
+                if (file.Split(@"\").Last().Contains(fileName, StringComparison.CurrentCultureIgnoreCase) == false)
+                {
+                    continue;
+                }
+
+                fileMatches.Add(file);
+            }
+
+
+
+            if (fileMatches.Count <= 0)
+            {
+                return ([], multipleSourceFilesFound, new Exception("Failed to find any source files which match the configuration."));
+            }
+
+            if (fileMatches.Count > 1)
+            {
+                multipleSourceFilesFound = true;
+            }
+
+
+
+            _currentSourceFilePath = fileMatches[0];
+
+            string[] sourceFileData;
+
+            try
+            {
+                sourceFileData = await File.ReadAllLinesAsync(_currentSourceFilePath);
+            }
+            catch (Exception exception)
+            {
+                return ([], multipleSourceFilesFound, exception);
+            }
+
+
+
+            List<string> finalSourceFileData = [];
+
+            for (int i = 0; i < sourceFileData.Length; i++)
+            {
+                string currentRow = sourceFileData[i];
+                currentRow = RegexPatterns.AllWhitespaces().Replace(currentRow, string.Empty);
+
+                if (currentRow.Equals(string.Empty) == false)
+                {
+                    finalSourceFileData.Add(currentRow);
+                }
+            }
+
+
+
+            return (finalSourceFileData, multipleSourceFilesFound, null);
+        }
+
+        private static async Task<Exception?> InsertDataIntoDatabase(string sqlConnectionString, string dbTableName, List<string> sourceData, CancellationToken cancellationToken)
+        {
+            ImportWorkerLog("Trying to establish a database connection.");
+
+            SqlConnection databaseConnection;
+
+            try
+            {
+                if (sqlConnectionString.Contains("connect timeout", StringComparison.CurrentCultureIgnoreCase) == false)
+                {
+                    sqlConnectionString += "Connect Timeout=5;";
+                }
+
+                databaseConnection = new(sqlConnectionString);
+
+                await databaseConnection.OpenAsync(cancellationToken);
+            }
+            catch (SqlException exception)
+            {
+                if (exception.Number == -2)
+                {
+                    return new Exception("Failed to establish a database connection due to a timeout.");
+                }
+
+                return new Exception("Failed to establish a database connection. " + exception.Message);
+            }
+            catch (Exception exception)
+            {
+                return new Exception("An error occurred while connection to the database. " + exception.Message);
+            }
+
+            ImportWorkerLog("Successfully established a database connection.");
+
+
+
+            ImportWorkerLog($"Inserting a total of '{sourceData.Count}' entries into the database.");
+
+            while (sourceData.Count > 0)
+            {
+                string currentDataRow = sourceData[0];
+                
+                if (RegexPatterns.AllWhitespaces().Replace(currentDataRow, string.Empty).Equals(string.Empty))
+                {
+                    sourceData.RemoveAt(0);
+                    continue;
+                }
+
+                string[] importValues = currentDataRow.Split(';');
+
+
+
+                int zaehlerId;
+
+                decimal energie;
+                decimal volumen;
+                decimal leistung;
+                decimal durchfluss;
+                decimal vorlauf;
+                decimal ruecklauf;
+
+                DateTime heatImportDate;
+                DateTime heatImportTime;
+
+
+
+                try
+                {
+                    zaehlerId = Convert.ToInt32(importValues[0]);
+
+                    volumen = Convert.ToDecimal(importValues[1]);
+                    energie = Convert.ToDecimal(importValues[2]);
+                    leistung = Convert.ToDecimal(importValues[3]);
+                    durchfluss = Convert.ToDecimal(importValues[4]);
+                    vorlauf = Convert.ToDecimal(importValues[5]);
+                    ruecklauf = Convert.ToDecimal(importValues[6]);
+                }
+                catch (Exception exception)
+                {
+                    return new Exception("Failed to convert PLC data. " + exception.Message);
+                }
+
+                try
+                {
+                    bool parsedDate = ConsoleHelper.TryToConvertDateTime(importValues[7], "yyyy.M.d", out heatImportDate);
+                    bool parsedTime = ConsoleHelper.TryToConvertDateTime(importValues[8], "H:m:s", out heatImportTime);
+
+                    if (parsedDate == false)
+                    {
+                        throw new Exception($"Failed to parse the provided date. Received date: '{importValues[7]}'.");
+                    }
+
+                    if (parsedTime == false)
+                    {
+                        throw new Exception($"Failed to parse the provided time. Received time: '{importValues[8]}'.");
+                    }
+                }
+                catch (Exception exception)
+                {
+                    return exception;
+                }
+
+
+                
+                try
+                {
+                    string queryNames = "heatimport_date, heatimport_time, zaehler_id, energie, volumen, leistung, durchfluss, vorlauf, ruecklauf";
+                    string queryValues = "@heatimport_date, @heatimport_time, @zaehler_id, @energie, @volumen, @leistung, @durchfluss, @vorlauf, @ruecklauf";
+                    string queryInsert = $"INSERT INTO {dbTableName} ({queryNames}) VALUES ({queryValues});";
+
+                    using SqlCommand insertCommand = new(queryInsert, databaseConnection);
+
+                    insertCommand.Parameters.AddWithValue("@heatimport_date", heatImportDate);
+                    insertCommand.Parameters.AddWithValue("@heatimport_time", heatImportTime);
+                    insertCommand.Parameters.AddWithValue("@zaehler_id", zaehlerId);
+                    insertCommand.Parameters.AddWithValue("@energie", energie);
+                    insertCommand.Parameters.AddWithValue("@volumen", volumen);
+                    insertCommand.Parameters.AddWithValue("@leistung", leistung);
+                    insertCommand.Parameters.AddWithValue("@durchfluss", durchfluss);
+                    insertCommand.Parameters.AddWithValue("@vorlauf", vorlauf);
+                    insertCommand.Parameters.AddWithValue("@ruecklauf", ruecklauf);
+
+                    await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+                }
+                catch (Exception exception)
+                {
+                    return new Exception($"Failed to import a row of the data set. Remaining elements: '{sourceData.Count}'. " + exception.Message);
+                }
+
+                sourceData.RemoveAt(0);
+            }
+
+
+
+            return null;
+        }
+
+        private static void ImportWorkerLog(string message, bool removePrefix = false)
+        {
+            ImportLogger.Log(_currentSection, message, removePrefix);
+            _dateOfLastLogFileEntry = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
+        }
+
+        private void ThrowModuleError(string errorMessage, string detailedError)
+        {
+            ImportWorkerLog($"[ERROR] - {errorMessage}");
+            ImportWorkerLog(detailedError, true);
+
+            MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, errorMessage, detailedError);
+
+            State = ModuleState.Error;
+            _errorCount++;
+        }
+
+        private void MoveSourceFileToFaultyFilesFolder()
+        {
+            ImportWorkerLog("Trying to move the current source file to faulty files folder.");
+
+            try
+            {
+                string unixTimestampSeconds = DateTimeOffset.Now.ToUnixTimeSeconds().ToString();
+
+                string districtHeatFaultyFilesFolder = _appPaths.districtHeatFaultyFilesFolder;
+                string destinationFile = Path.Combine(districtHeatFaultyFilesFolder, $"dataset_{unixTimestampSeconds}.csv");
+
+                File.Move(_currentSourceFilePath, destinationFile);
+
+                _currentSourceFilePath = string.Empty;
+
+                ImportWorkerLog("Successfully moved the source file.");
+            }
+            catch (Exception exception)
+            {
+                ThrowModuleError("Failed to move the current source file.", exception.Message + $" File path: {_currentSourceFilePath}.");
             }
         }
     }

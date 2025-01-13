@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Globalization;
+using System.Runtime.InteropServices;
 
 
 
@@ -90,6 +91,11 @@ namespace DataImportClient.Scripts
             }
 
             await Task.Delay(durationInSeconds * 1000);
+        }
+
+        internal static bool TryToConvertDateTime(string sourceString, string format, out DateTime result)
+        {
+            return DateTime.TryParseExact(sourceString, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out result);
         }
     }
 }

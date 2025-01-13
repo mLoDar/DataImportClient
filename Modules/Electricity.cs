@@ -634,7 +634,10 @@ namespace DataImportClient.Modules
                 string currentRow = sourceFileData[i];
                 currentRow = RegexPatterns.AllWhitespaces().Replace(currentRow, string.Empty);
 
-                finalSourceFileData.Add(currentRow);
+                if (currentRow.Equals(string.Empty) == false)
+                {
+                    finalSourceFileData.Add(currentRow);
+                }
             }
 
 

@@ -177,7 +177,7 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name = 'DistrictHeat' AND xtype = 
             heatimport_id INT IDENTITY(1,1) PRIMARY KEY,
 			heatimport_date DATE DEFAULT CAST(GETDATE() AS DATE),
 			heatimport_time TIME(3) DEFAULT CAST(GETDATE() AS TIME(3)),
-			zaehler_id DECIMAL(12, 2),
+			zaehler_id INT,
 			energie DECIMAL(12, 2),
 			volumen DECIMAL(12, 2),
 			leistung DECIMAL(12, 2),
