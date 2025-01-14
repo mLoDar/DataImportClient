@@ -40,11 +40,11 @@ namespace DataImportClient.Scripts
 
                 if (removePrefix == true)
                 {
-                    writer.WriteLine($"{new string(' ', prefix.Length)}{message}\r\n");
+                    writer.WriteLine($"{new string(' ', prefix.Length)}{message}");
                     return;
                 }
 
-                writer.WriteLine($"{prefix}{message}\r\n");
+                writer.WriteLine($"{prefix}{message}");
             }
             catch (Exception exception)
             {

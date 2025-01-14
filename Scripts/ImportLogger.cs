@@ -44,18 +44,18 @@ namespace DataImportClient.Scripts
                 string logFile = Path.Combine(logsFolder, logFileName);
                 string prefix = $"[{DateTime.Now}] - [ProcessId: {Environment.ProcessId}] - [Section: {currentSection}] - ";
 
-                using FileStream fs = new(logFile, FileMode.Append, FileAccess.Write, FileShare.None);
+                using FileStream fs = new(logFile, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
                 using StreamWriter writer = new(fs);
 
 
 
                 if (removePrefix == true)
                 {
-                    writer.WriteLine($"{new string(' ', prefix.Length)}{message}\r\n");
+                    writer.WriteLine($"{new string(' ', prefix.Length)}{message}");
                     return;
                 }
 
-                writer.WriteLine($"{prefix}{message}\r\n");
+                writer.WriteLine($"{prefix}{message}");
             }
             catch
             {
