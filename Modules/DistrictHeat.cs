@@ -6,6 +6,7 @@ using static DataImportClient.Ressources.ModuleConfigurations;
 
 using Newtonsoft.Json.Linq;
 using Microsoft.Data.SqlClient;
+using System.Diagnostics;
 
 
 
@@ -163,12 +164,69 @@ namespace DataImportClient.Modules
             switch (_navigationXPosition)
             {
                 case 1:
+                    try
+                    {
+                        string importWorkerLogsFolder = _appPaths.districtHeatImportWorkerLogs;
+                        Process.Start("explorer.exe", importWorkerLogsFolder);
+
+                        ActivityLogger.Log(_currentSection, "Opened the folder for the import worker logs of the current module.");
+                    }
+                    catch (Exception exception)
+                    {
+                        ActivityLogger.Log(_currentSection, "[ERROR] Failed to open the folder for import worker logs of the current module.");
+                        ActivityLogger.Log(_currentSection, exception.Message, true);
+
+                        string title = "Failed to perform this action.";
+                        string description = "Please check the error log for detailed information.";
+
+                        await ConsoleHelper.DisplayInformation(title, description, ConsoleColor.Red);
+                    }
                     break;
 
                 case 2:
+                    if (_serviceRunning == true)
+                    {
+                        ActivityLogger.Log(_currentSection, "Stopping the active import worker of the current module.");
+                        ImportWorkerLog("Stopping the active import worker of the current module.");
+
+                        _cancellationTokenSource?.Cancel();
+                        _moduleState = ModuleState.Stopped;
+                        _serviceRunning = false;
+                        break;
+                    }
+
+                    ActivityLogger.Log(_currentSection, "Starting a new import worker for the current module.");
+                    ImportWorkerLog(string.Empty, true);
+                    ImportWorkerLog("Starting a new import worker for the current module.");
+
+
+
+                    if (ErrorCount <= 0)
+                    {
+                        _moduleState = ModuleState.Running;
+                    }
+
+                    _cancellationTokenSource = new();
+                    CancellationToken cancellationToken = _cancellationTokenSource.Token;
+
+                    _serviceRunning = true;
+
+                    _importWorker = Task.Run(() => ImportPlcData(cancellationToken));
+
                     break;
 
                 case 3:
+                    ActivityLogger.Log(_currentSection, $"Clearing errors for the current module. Previous error count: '{_errorCount}'.");
+
+                    if (State != ModuleState.Stopped)
+                    {
+                        _moduleState = ModuleState.Running;
+                    }
+
+                    _errorCount = 0;
+
+                    MainMenu._sectionMiscellaneous.errorCache.RemoveSectionFromCache(_currentSection);
+
                     break;
 
                 case 4:

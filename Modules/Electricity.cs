@@ -168,7 +168,7 @@ namespace DataImportClient.Modules
                 case 1:
                     try
                     {
-                        string importWorkerLogsFolder = _appPaths.weatherImportWorkerLogs;
+                        string importWorkerLogsFolder = _appPaths.electricityImportWorkerLogs;
                         Process.Start("explorer.exe", importWorkerLogsFolder);
 
                         ActivityLogger.Log(_currentSection, "Opened the folder for the import worker logs of the current module.");
