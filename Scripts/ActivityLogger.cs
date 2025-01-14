@@ -33,23 +33,31 @@ namespace DataImportClient.Scripts
                 string logFile = Path.Combine(logsFolder, logFileName);
                 string prefix = $"[{DateTime.Now}] - [ProcessId: {Environment.ProcessId}] - [Section: {currentSection}] - ";
 
+                using FileStream fs = new(logFile, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+                using StreamWriter writer = new(fs);
+                
+
+
                 if (removePrefix == true)
                 {
-                    File.AppendAllText(logFile, $"{new string(' ', prefix.Length)}{message}\r\n");
+                    writer.WriteLine($"{new string(' ', prefix.Length)}{message}\r\n");
                     return;
                 }
 
-                File.AppendAllText(logFile, $"{prefix}{message}\r\n");
+                writer.WriteLine($"{prefix}{message}\r\n");
             }
-            catch
+            catch (Exception exception)
             {
                 Console.Clear();
                 Console.SetCursorPosition(0, 4);
                 Console.ForegroundColor = ConsoleColor.DarkRed;
                 Console.WriteLine("             WARNING\r\n");
                 Console.ForegroundColor = ConsoleColor.White;
-                Console.WriteLine("             Failed to create crucial folders/files.");
-                Console.WriteLine("             Please read the manual on how to fix this error!");
+                Console.WriteLine("             Failed to create log entries for the current session.");
+                Console.WriteLine("             Please copy the details below as a help to fix this error.");
+                Console.WriteLine("             ");
+                Console.WriteLine("             Details: ");
+                Console.WriteLine($"             {exception.Message}");
                 Thread.Sleep(10000);
 
                 Environment.Exit(0);
