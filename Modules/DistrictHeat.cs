@@ -1,7 +1,8 @@
 ﻿using System.Globalization;
 
-using DataImportClient.Ressources;
 using DataImportClient.Scripts;
+using DataImportClient.Ressources;
+using static DataImportClient.Ressources.ModuleConfigurations;
 
 using Newtonsoft.Json.Linq;
 using Microsoft.Data.SqlClient;
@@ -12,25 +13,6 @@ using Microsoft.Data.SqlClient;
 
 namespace DataImportClient.Modules
 {
-    internal struct DistrictHeatConfiguration
-    {
-        internal string sourceFilePath;
-        internal string sourceFilePattern;
-        internal string sourceFileIntervalSeconds;
-        internal string sqlConnectionString;
-        internal string dbTableName;
-
-
-
-        internal readonly bool HoldsInvalidValues()
-        {
-            var stringFields = new string[] { sourceFilePath, sourceFilePattern, sourceFileIntervalSeconds, sqlConnectionString, dbTableName };
-            return stringFields.Any(string.IsNullOrEmpty);
-        }
-    }
-
-
-
     internal class DistrictHeat
     {
         private const string _currentSection = "ModuleDisctrictHeat";

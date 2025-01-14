@@ -3,6 +3,7 @@ using System.Globalization;
 
 using DataImportClient.Scripts;
 using DataImportClient.Ressources;
+using static DataImportClient.Ressources.ModuleConfigurations;
 
 using Newtonsoft.Json.Linq;
 using Microsoft.Data.SqlClient;
@@ -13,18 +14,6 @@ using Microsoft.Data.SqlClient;
 
 namespace DataImportClient.Modules
 {
-    internal struct WeatherData
-    {
-        internal decimal longitude;
-        internal decimal latitude;
-        internal string weatherType;
-        internal decimal humidity;
-        internal decimal windSpeed;
-        internal decimal temperature;
-        internal int sunsetUnixSeconds;
-        internal int sunriseUnixSeconds;
-    }
-
     internal struct WeatherConfiguration
     {
         internal string apiUrl;

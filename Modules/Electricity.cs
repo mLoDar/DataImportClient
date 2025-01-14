@@ -3,6 +3,7 @@ using System.Globalization;
 
 using DataImportClient.Scripts;
 using DataImportClient.Ressources;
+using static DataImportClient.Ressources.ModuleConfigurations;
 
 using Newtonsoft.Json.Linq;
 using Microsoft.Data.SqlClient;
@@ -13,24 +14,6 @@ using Microsoft.Data.SqlClient;
 
 namespace DataImportClient.Modules
 {
-    internal struct ElectricityConfiguration
-    {
-        internal string sourceFilePath;
-        internal string sourceFilePattern;
-        internal string sourceFileIntervalSeconds;
-        internal string sqlConnectionString;
-        internal string dbTableNamePower;
-        internal string dbTableNamePowerfactor;
-
-
-        
-        internal readonly bool HoldsInvalidValues()
-        {
-            var stringFields = new string[] { sourceFilePath, sourceFilePattern, sourceFileIntervalSeconds, sqlConnectionString, dbTableNamePower, dbTableNamePowerfactor };
-            return stringFields.Any(string.IsNullOrEmpty);
-        }
-    }
-
 
 
     internal class Electricity
