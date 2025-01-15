@@ -10,12 +10,9 @@
 
         internal class Paths
         {
-            private static readonly Runtime _runtime = new();
-
             internal readonly string appDataFolder;
             internal readonly string clientFolder;
             internal readonly string logsFolder;
-            internal readonly string logFileName;
             internal readonly string configurationFile;
 
             internal readonly string errorCacheFile;
@@ -40,9 +37,6 @@
 
             internal Paths()
             {
-                DateTime now = DateTime.Now;
-                logFileName = $"runtime-{_runtime.appVersion}-{now:dd-MM-yyyy}.log";
-
                 appDataFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 clientFolder = Path.Combine(appDataFolder, "DataImportClient");
                 logsFolder = Path.Combine(clientFolder, "runtimeLogs");

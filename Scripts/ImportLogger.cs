@@ -9,6 +9,7 @@ namespace DataImportClient.Scripts
     internal class ImportLogger
     {
         private static readonly ApplicationSettings.Paths _appPaths = new();
+        private static readonly ApplicationSettings.Runtime _runtime = new();
 
 
 
@@ -16,8 +17,10 @@ namespace DataImportClient.Scripts
         {
             try
             {
+                DateTime now = DateTime.Now;
+
                 string clientFolder = _appPaths.clientFolder;
-                string logFileName = _appPaths.logFileName;
+                string logFileName = $"runtime-{_runtime.appVersion}-{now:dd-MM-yyyy}.log";
                 string logsFolder = string.Empty;
                 
 
