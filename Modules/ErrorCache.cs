@@ -1,12 +1,12 @@
 ﻿using System.Diagnostics;
-
 using DataImportClient.Ressources;
+using DataImportClient.Scripts;
 
 
 
 
 
-namespace DataImportClient.Scripts
+namespace DataImportClient.Modules
 {
     struct ErrorCacheEntry
     {
@@ -102,7 +102,7 @@ namespace DataImportClient.Scripts
             Console.Clear();
 
         LabelDrawErrorCache:
-            
+
             Console.SetCursorPosition(0, 4);
 
 

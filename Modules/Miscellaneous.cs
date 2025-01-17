@@ -7,7 +7,7 @@ using DataImportClient.Ressources;
 
 
 
-namespace DataImportClient
+namespace DataImportClient.Modules
 {
     class Miscellaneous
     {
