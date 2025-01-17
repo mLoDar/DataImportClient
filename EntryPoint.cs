@@ -17,7 +17,7 @@ namespace DataImportClient
 
         private static readonly ApplicationSettings.Paths _appPaths = new();
         private static readonly ApplicationSettings.Runtime _appRuntime = new();
-        
+
 
 
         static async Task Main()
@@ -84,11 +84,11 @@ namespace DataImportClient
             Console.CursorVisible = false;
             Console.Title = "DataImportClient";
             Console.OutputEncoding = Encoding.UTF8;
-            
+
 
 
             await MainMenu.Main();
-            
+
 
 
             ActivityLogger.Log(_currentSection, "Shutting down DataImportClient ...");
@@ -140,7 +140,7 @@ namespace DataImportClient
                 {
                     return (false, exception);
                 }
-                
+
             }
 
 
@@ -193,7 +193,18 @@ namespace DataImportClient
                     appConfiguration["emailAlerts"] = new JObject()
                     {
                         ["featureActive"] = false,
-                        ["emailsToAlert"] = new JArray(),
+                        ["senderSettings"] = new JObject()
+                        {
+                            ["senderEmail"] = "example@mail.com",
+                            ["senderPassword"] = "examplePassword",
+                            ["smtpHost"] = "example.host.com",
+                            ["smtpPort"] = 0,
+                        },
+                        ["emailRecipients"] = new JArray()
+                        {
+                            "example1@email.com",
+                            "example2@email.com",
+                        },
                     };
 
 
@@ -207,7 +218,7 @@ namespace DataImportClient
             {
                 return (false, exception);
             }
-            
+
 
 
             return (true, new Exception());

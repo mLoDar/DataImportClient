@@ -14,22 +14,16 @@ using Microsoft.Data.SqlClient;
 
 namespace DataImportClient.Modules
 {
-    internal struct WeatherConfiguration
+    internal struct WeatherData
     {
-        internal string apiUrl;
-        internal string apiKey;
-        internal string apiLocation;
-        internal string apiIntervalSeconds;
-        internal string sqlConnectionString;
-        internal string dbTableName;
-
-
-
-        internal readonly bool HoldsInvalidValues()
-        {
-            var stringFields = new string[] { apiUrl, apiKey, apiLocation, apiIntervalSeconds, sqlConnectionString, dbTableName };
-            return stringFields.Any(string.IsNullOrEmpty);
-        }
+        internal decimal longitude;
+        internal decimal latitude;
+        internal string weatherType;
+        internal decimal humidity;
+        internal decimal windSpeed;
+        internal decimal temperature;
+        internal int sunsetUnixSeconds;
+        internal int sunriseUnixSeconds;
     }
 
 
@@ -53,7 +47,7 @@ namespace DataImportClient.Modules
         private static string _formattedLastLogFileEntry = string.Empty;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "<Pending>")]
-        private static Task _importWorker = new(() => {});
+        private static Task _importWorker = new(() => { });
 
         private static CancellationTokenSource _cancellationTokenSource = new();
 
@@ -235,7 +229,7 @@ namespace DataImportClient.Modules
 
                 case 3:
                     ActivityLogger.Log(_currentSection, $"Clearing errors for the current module. Previous error count: '{_errorCount}'.");
-                    
+
                     if (State != ModuleState.Stopped)
                     {
                         _moduleState = ModuleState.Running;
