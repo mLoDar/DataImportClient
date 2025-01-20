@@ -136,9 +136,6 @@ namespace DataImportClient
                     }
                     break;
 
-                case ConsoleKey.Backspace:
-                    return;
-
                 case ConsoleKey.Escape:
                     return;
 
