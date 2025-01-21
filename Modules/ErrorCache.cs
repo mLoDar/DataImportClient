@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
-using DataImportClient.Ressources;
+
 using DataImportClient.Scripts;
+using DataImportClient.Ressources;
 
 
 
@@ -116,12 +117,15 @@ namespace DataImportClient.Modules
             Console.ForegroundColor = ConsoleColor.White;
             Console.WriteLine("                                                               ");
             Console.WriteLine("                                                               ");
-            Console.WriteLine("             ┌──────────────────────────────────────────────────────────────────────────────────────────┐");
+            Console.WriteLine("             ┌──────────────────────────────────────────────────────────────────────────────────────────┐   ┬");
 
 
 
             int maxErrorLength = 88;
+            int scrollBarHelper = 0;
             int errorsDisplayedAtOnce = 10;
+
+            var (scrollBarStart, scrollBarEnd) = GetScrollbarRange(_entries.Count, errorsDisplayedAtOnce, cacheViewStartIndex);
 
             for (int currentErrorIndex = cacheViewStartIndex; currentErrorIndex < cacheViewStartIndex + errorsDisplayedAtOnce && currentErrorIndex < _entries.Count; currentErrorIndex++)
             {
@@ -134,12 +138,18 @@ namespace DataImportClient.Modules
 
                 currentError = currentError.PadRight(maxErrorLength);
 
-                Console.WriteLine($"             │ {currentError} │");
+
+
+                bool helperWithinRange = scrollBarHelper >= scrollBarStart && scrollBarHelper <= scrollBarEnd;
+
+                Console.WriteLine($"             │ {currentError} │   {(helperWithinRange == true ? "█" : "│")}");
+
+                scrollBarHelper++;
             }
 
 
 
-            Console.WriteLine("             └──────────────────────────────────────────────────────────────────────────────────────────┘");
+            Console.WriteLine("             └──────────────────────────────────────────────────────────────────────────────────────────┘   ┴");
             Console.WriteLine("                                                               ");
             Console.WriteLine("                                                               ");
             Console.WriteLine("             ┌ Navigate with the arrow keys                    ");
@@ -286,6 +296,23 @@ namespace DataImportClient.Modules
 
 
             goto LabelDrawInformation;
+        }
+
+        private static (int scrollBarStart, int scrollBarEnd) GetScrollbarRange(int totalEntries, int errorsDisplayedAtOnce, int cacheViewStartIndex)
+        {
+            int scrollBarHeight = (int)Math.Round((double)errorsDisplayedAtOnce / totalEntries * errorsDisplayedAtOnce);
+
+            if (scrollBarHeight <= 0)
+            {
+                scrollBarHeight = 1;
+            }
+
+            double entriesPerPart = (double)cacheViewStartIndex / (totalEntries - errorsDisplayedAtOnce);
+
+            int scrollBarStart = (int)Math.Round(entriesPerPart * (errorsDisplayedAtOnce - scrollBarHeight));
+            int scrollBarEnd = scrollBarStart + scrollBarHeight;
+
+            return (scrollBarStart, scrollBarEnd);
         }
     }
 }
