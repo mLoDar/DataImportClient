@@ -13,8 +13,6 @@ namespace DataImportClient.Scripts
     {
         private const string _currentSection = "EmailClient";
 
-        private static string _recipients = string.Empty;
-
 
 
         private struct SenderDetails
@@ -23,7 +21,7 @@ namespace DataImportClient.Scripts
             internal string senderPassword;
             internal string smtpHost;
             internal int smtpPort;
-
+            
             internal readonly bool HoldsInvalidValues()
             {
                 var stringFields = new string[] { senderEmail, senderPassword, smtpHost };
@@ -48,7 +46,7 @@ namespace DataImportClient.Scripts
         {
             ActivityLogger.Log(_currentSection, $"Preparing to send a new email for '{originSection}'. Fetching sender details.");
 
-            (SenderDetails senderDetails, Exception? occuredError) = await GetSenderDetails();
+            (SenderDetails senderDetails, string recipients, Exception? occuredError) = await GetSenderDetails();
 
             if (occuredError != null)
             {
@@ -60,8 +58,6 @@ namespace DataImportClient.Scripts
 
 
 
-            _recipients = string.Empty;
-
             try
             {
                 MailMessage mail = new()
@@ -72,12 +68,12 @@ namespace DataImportClient.Scripts
                     IsBodyHtml = false,
                 };
 
-                if (_recipients == null || _recipients.Equals(string.Empty))
+                if (recipients == null || recipients.Equals(string.Empty))
                 {
                     throw new Exception("Email recipients are empty.");
                 }
 
-                mail.To.Add(_recipients);
+                mail.To.Add(recipients);
 
                 SmtpClient smtpClient = new(senderDetails.smtpHost, senderDetails.smtpPort)
                 {
@@ -90,7 +86,7 @@ namespace DataImportClient.Scripts
             catch (Exception exception)
             {
                 ActivityLogger.Log(_currentSection, "[ERROR] - Failed to send an email with the following details:");
-                ActivityLogger.Log(_currentSection, $"Recipients: '{_recipients}'", true);
+                ActivityLogger.Log(_currentSection, $"Recipients: '{recipients}'", true);
                 ActivityLogger.Log(_currentSection, $"Subject: '{emailSubject}'", true);
                 ActivityLogger.Log(_currentSection, $"Body: '{emailBody}'", true);
                 ActivityLogger.Log(_currentSection, exception.Message, true);
@@ -100,7 +96,7 @@ namespace DataImportClient.Scripts
             return true;
         }
         
-        private static async Task<(SenderDetails senderDetails, Exception? occuredError)> GetSenderDetails()
+        private static async Task<(SenderDetails senderDetails, string recipients, Exception? occuredError)> GetSenderDetails()
         {
             JObject savedConfiguration;
 
@@ -115,12 +111,13 @@ namespace DataImportClient.Scripts
             }
             catch (Exception exception)
             {
-                return (new SenderDetails(), exception);
+                return (new SenderDetails(), string.Empty, exception);
             }
 
 
 
             JObject senderSettings;
+            string recipients;
 
             try
             {
@@ -145,11 +142,11 @@ namespace DataImportClient.Scripts
                     throw new Exception("Configuration file does not contain a 'emailRecipients' object.");
                 }
 
-                _recipients = string.Join(',', emailRecipients);
+                recipients = string.Join(',', emailRecipients);
             }
             catch (Exception exception)
             {
-                return (new SenderDetails(), exception);
+                return (new SenderDetails(), string.Empty, exception);
             }
 
 
@@ -173,10 +170,10 @@ namespace DataImportClient.Scripts
             }
             catch (Exception exception)
             {
-                return (new SenderDetails(), exception);
+                return (new SenderDetails(), string.Empty, exception);
             }
 
-            return (senderDetails, null);
+            return (senderDetails, recipients, null);
         }
     }
 }

@@ -35,6 +35,7 @@ namespace DataImportClient.Modules
         private const string _currentSection = "ErrorCache";
 
         private readonly List<ErrorCacheEntry> _entries = [];
+        private readonly SemaphoreSlim _semaphore = new(1, 1);
 
         const int maxEntries = 30;
 
@@ -42,23 +43,40 @@ namespace DataImportClient.Modules
 
 
 
-        internal void AddEntry(string errorSection, string errorMessage, string detailedError)
+        internal async Task AddEntry(string errorSection, string errorMessage, string detailedError)
         {
-            ErrorCacheEntry entry = new()
-            {
-                dateTime = DateTime.Now,
-                processId = Environment.ProcessId,
-                section = errorSection,
-                error = errorMessage,
-                detail = detailedError
-            };
+            await _semaphore.WaitAsync();
 
-            if (_entries.Count + 1 > maxEntries)
+            try
             {
-                _entries.RemoveAt(0);
+                ErrorCacheEntry entry = new()
+                {
+                    dateTime = DateTime.Now,
+                    processId = Environment.ProcessId,
+                    section = errorSection,
+                    error = errorMessage,
+                    detail = detailedError
+                };
+
+                if (_entries.Count + 1 > maxEntries)
+                {
+                    _entries.RemoveAt(0);
+                }
+
+                _entries.Add(entry);
+
+                if (_entries.Count == 1 || _entries.Count % 10 == 0)
+                {
+                    string emailSubject = "Errors at DataImport";
+                    string emailBody = $"There {(_entries.Count > 1 ? "are" : "is")} currently {_entries.Count} error{(_entries.Count > 1 ? "s" : string.Empty)} which need{(_entries.Count > 1 ? "s" : string.Empty)} a manual review.";
+
+                    await EmailClient.SendEmail(errorSection, emailSubject, emailBody);
+                }
             }
-
-            _entries.Add(entry);
+            finally
+            {
+                _semaphore.Release();
+            }
         }
 
         internal void RemoveSectionFromCache(string errorSection)
