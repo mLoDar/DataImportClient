@@ -334,7 +334,7 @@ namespace DataImportClient.Modules
                 if (occuredError != null)
                 {
                     string errorMessage = "An error has occured while fetching the settings.";
-                    ThrowModuleError(errorMessage, occuredError.Message);
+                    await ThrowModuleError(errorMessage, occuredError.Message);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
 
@@ -365,9 +365,9 @@ namespace DataImportClient.Modules
                 if (occuredError != null)
                 {
                     string errorMessage = "An error has occured while fetching data form the PLC source file.";
-                    ThrowModuleError(errorMessage, occuredError.Message);
+                    await ThrowModuleError(errorMessage, occuredError.Message);
 
-                    MoveSourceFileToFaultyFilesFolder();
+                    await MoveSourceFileToFaultyFilesFolder();
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
 
@@ -386,9 +386,9 @@ namespace DataImportClient.Modules
                 if (occuredError != null)
                 {
                     string errorMessage = "An error has occured while minimizing the fetched data.";
-                    ThrowModuleError(errorMessage, occuredError.Message);
+                    await ThrowModuleError(errorMessage, occuredError.Message);
 
-                    MoveSourceFileToFaultyFilesFolder();
+                    await MoveSourceFileToFaultyFilesFolder();
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
 
@@ -411,9 +411,9 @@ namespace DataImportClient.Modules
                 if (occuredError != null)
                 {
                     string errorMessage = "An error has occured while inserting the data into the database.";
-                    ThrowModuleError(errorMessage, occuredError.Message);
+                    await ThrowModuleError(errorMessage, occuredError.Message);
 
-                    MoveSourceFileToFaultyFilesFolder();
+                    await MoveSourceFileToFaultyFilesFolder();
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
 
@@ -434,7 +434,7 @@ namespace DataImportClient.Modules
                 catch (Exception exception)
                 {
                     string errorMessage = "Failed to delete the source file.";
-                    ThrowModuleError(errorMessage, exception.Message);
+                    await ThrowModuleError(errorMessage, exception.Message);
                 }
 
                 ImportWorkerLog("Successfully deleted the source file.");
@@ -1001,18 +1001,18 @@ namespace DataImportClient.Modules
             _dateOfLastLogFileEntry = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
         }
 
-        private void ThrowModuleError(string errorMessage, string detailedError)
+        private async Task ThrowModuleError(string errorMessage, string detailedError)
         {
             ImportWorkerLog($"[ERROR] - {errorMessage}");
             ImportWorkerLog(detailedError, true);
 
-            MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, errorMessage, detailedError);
+            await MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, errorMessage, detailedError);
 
             State = ModuleState.Error;
             _errorCount++;
         }
 
-        private void MoveSourceFileToFaultyFilesFolder()
+        private async Task MoveSourceFileToFaultyFilesFolder()
         {
             ImportWorkerLog("Trying to move the current source file to faulty files folder.");
 
@@ -1031,7 +1031,7 @@ namespace DataImportClient.Modules
             }
             catch (Exception exception)
             {
-                ThrowModuleError("Failed to move the current source file.", exception.Message + $" File path: {_currentSourceFilePath}.");
+                await ThrowModuleError("Failed to move the current source file.", exception.Message + $" File path: {_currentSourceFilePath}.");
             }
         }
     }
