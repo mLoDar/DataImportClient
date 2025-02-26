@@ -24,7 +24,7 @@ namespace DataImportClient.Scripts
 
 
 
-        internal static (bool successfullyEnabled, Exception occuredError) EnableAnsiSupport()
+        internal static (bool successfullyEnabled, Exception occurredError) EnableAnsiSupport()
         {
             try
             {

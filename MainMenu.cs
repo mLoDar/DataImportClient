@@ -312,11 +312,11 @@ namespace DataImportClient
                 emailAlerts["featureActive"] = newFeatureState;
                 savedConfiguration["emailAlerts"] = emailAlerts;
 
-                Exception? occuredError = ConfigurationHelper.SaveConfiguration(savedConfiguration).Result;
+                Exception? occurredError = ConfigurationHelper.SaveConfiguration(savedConfiguration).Result;
 
-                if (occuredError != null)
+                if (occurredError != null)
                 {
-                    throw new Exception("Could not save configuration file. " + occuredError.Message);
+                    throw new Exception("Could not save configuration file. " + occurredError.Message);
                 }
 
 

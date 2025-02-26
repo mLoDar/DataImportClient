@@ -326,12 +326,12 @@ namespace DataImportClient.Modules
             {
                 ImportWorkerLog("Fetching settings from configuration file.");
 
-                (DistrictHeatConfiguration districtHeatConfiguration, Exception? occuredError) = await GetConfigurationValues();
+                (DistrictHeatConfiguration districtHeatConfiguration, Exception? occurredError) = await GetConfigurationValues();
 
-                if (occuredError != null)
+                if (occurredError != null)
                 {
-                    string errorMessage = "An error has occured while fetching the settings.";
-                    ThrowModuleError(errorMessage, occuredError.Message);
+                    string errorMessage = "An error has occurred while fetching the settings.";
+                    ThrowModuleError(errorMessage, occurredError.Message);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
 
@@ -357,12 +357,12 @@ namespace DataImportClient.Modules
 
                 ImportWorkerLog("Trying to fetch data from a PLC source file.");
 
-                (List<string> sourceFileData, bool foundMultipleFiles, occuredError) = await GetSourceFileData(sourceFilePath, sourceFilePattern);
+                (List<string> sourceFileData, bool foundMultipleFiles, occurredError) = await GetSourceFileData(sourceFilePath, sourceFilePattern);
 
-                if (occuredError != null)
+                if (occurredError != null)
                 {
-                    string errorMessage = "An error has occured while fetching data form the PLC source file.";
-                    ThrowModuleError(errorMessage, occuredError.Message);
+                    string errorMessage = "An error has occurred while fetching data from the PLC source file.";
+                    ThrowModuleError(errorMessage, occurredError.Message);
 
                     MoveSourceFileToFaultyFilesFolder();
 
@@ -381,12 +381,12 @@ namespace DataImportClient.Modules
                 string dbTableName = districtHeatConfiguration.dbTableName;
                 string sqlConnectionString = districtHeatConfiguration.sqlConnectionString;
 
-                occuredError = await InsertDataIntoDatabase(sqlConnectionString, dbTableName, sourceFileData, cancellationToken);
+                occurredError = await InsertDataIntoDatabase(sqlConnectionString, dbTableName, sourceFileData, cancellationToken);
 
-                if (occuredError != null)
+                if (occurredError != null)
                 {
-                    string errorMessage = "An error has occured while inserting the data into the database.";
-                    ThrowModuleError(errorMessage, occuredError.Message);
+                    string errorMessage = "An error has occurred while inserting the data into the database.";
+                    ThrowModuleError(errorMessage, occurredError.Message);
 
                     MoveSourceFileToFaultyFilesFolder();
 
@@ -435,7 +435,7 @@ namespace DataImportClient.Modules
             }
         }
 
-        private static async Task<(DistrictHeatConfiguration districtHeatConfiguration, Exception? occuredError)> GetConfigurationValues()
+        private static async Task<(DistrictHeatConfiguration districtHeatConfiguration, Exception? occurredError)> GetConfigurationValues()
         {
             JObject savedConfiguration;
 
@@ -518,7 +518,7 @@ namespace DataImportClient.Modules
             }
         }
 
-        private static async Task<(List<string> sourceData, bool foundMultipleFiles, Exception? occuredError)> GetSourceFileData(string sourceFilePath, string sourceFilePattern)
+        private static async Task<(List<string> sourceData, bool foundMultipleFiles, Exception? occurredError)> GetSourceFileData(string sourceFilePath, string sourceFilePattern)
         {
             bool multipleSourceFilesFound = false;
 

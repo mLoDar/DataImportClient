@@ -46,12 +46,12 @@ namespace DataImportClient.Scripts
         {
             ActivityLogger.Log(_currentSection, $"Preparing to send a new email for '{originSection}'. Fetching sender details.");
 
-            (SenderDetails senderDetails, string recipients, Exception? occuredError) = await GetSenderDetails();
+            (SenderDetails senderDetails, string recipients, Exception? occurredError) = await GetSenderDetails();
 
-            if (occuredError != null)
+            if (occurredError != null)
             {
                 ActivityLogger.Log(_currentSection, "[ERROR] - Failed to get all sender details from the application configuration.");
-                ActivityLogger.Log(_currentSection, occuredError.Message, true);
+                ActivityLogger.Log(_currentSection, occurredError.Message, true);
 
                 return false;
             }
@@ -96,7 +96,7 @@ namespace DataImportClient.Scripts
             return true;
         }
         
-        private static async Task<(SenderDetails senderDetails, string recipients, Exception? occuredError)> GetSenderDetails()
+        private static async Task<(SenderDetails senderDetails, string recipients, Exception? occurredError)> GetSenderDetails()
         {
             JObject savedConfiguration;
 

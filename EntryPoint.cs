@@ -32,12 +32,12 @@ namespace DataImportClient
 
 
             ActivityLogger.Log(_currentSection, "Trying to enable support for ANSI escape sequence.");
-            (bool ansiSupportEnabled, Exception occuredError) = ConsoleHelper.EnableAnsiSupport();
+            (bool ansiSupportEnabled, Exception occurredError) = ConsoleHelper.EnableAnsiSupport();
 
             if (ansiSupportEnabled == false)
             {
                 ActivityLogger.Log(_currentSection, "[ERROR] Failed to enable ANSI support.");
-                ActivityLogger.Log(_currentSection, occuredError.Message, true);
+                ActivityLogger.Log(_currentSection, occurredError.Message, true);
 
                 Console.SetCursorPosition(0, 4);
                 Console.ForegroundColor = ConsoleColor.DarkRed;
@@ -57,12 +57,12 @@ namespace DataImportClient
 
 
             ActivityLogger.Log(_currentSection, "Searching for all required folders/files.");
-            (bool successfullyCreated, occuredError) = await CreateDiskFolderStructure();
+            (bool successfullyCreated, occurredError) = await CreateDiskFolderStructure();
 
             if (successfullyCreated == false)
             {
                 ActivityLogger.Log(_currentSection, "[ERROR] Failed to create required folder/file structure.");
-                ActivityLogger.Log(_currentSection, occuredError.Message, true);
+                ActivityLogger.Log(_currentSection, occurredError.Message, true);
 
                 Console.SetCursorPosition(0, 4);
                 Console.ForegroundColor = ConsoleColor.DarkRed;
@@ -96,7 +96,7 @@ namespace DataImportClient
             Environment.Exit(0);
         }
 
-        private static async Task<(bool successfullyCreated, Exception occuredError)> CreateDiskFolderStructure()
+        private static async Task<(bool successfullyCreated, Exception occurredError)> CreateDiskFolderStructure()
         {
             string appDataFolder = _appPaths.appDataFolder;
             string configurationFile = _appPaths.configurationFile;

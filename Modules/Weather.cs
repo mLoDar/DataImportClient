@@ -338,12 +338,12 @@ namespace DataImportClient.Modules
             {
                 ImportWorkerLog("Fetching settings from configuration file.");
 
-                (WeatherConfiguration weatherConfiguration, Exception? occuredError) = await GetConfigurationValues();
+                (WeatherConfiguration weatherConfiguration, Exception? occurredError) = await GetConfigurationValues();
 
-                if (occuredError != null)
+                if (occurredError != null)
                 {
-                    string errorMessage = "An error has occured while fetching the settings.";
-                    ThrowModuleError(errorMessage, occuredError.Message);
+                    string errorMessage = "An error has occurred while fetching the settings.";
+                    ThrowModuleError(errorMessage, occurredError.Message);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
 
@@ -367,12 +367,12 @@ namespace DataImportClient.Modules
 
                 ImportWorkerLog("Contacting the API and requesting a data set.");
 
-                (WeatherData weatherData, occuredError) = await FetchApiData(apiUrl, cancellationToken);
+                (WeatherData weatherData, occurredError) = await FetchApiData(apiUrl, cancellationToken);
 
-                if (occuredError != null)
+                if (occurredError != null)
                 {
-                    string errorMessage = "An error has occured while fetching data from the API provider.";
-                    ThrowModuleError(errorMessage, occuredError.Message);
+                    string errorMessage = "An error has occurred while fetching data from the API provider.";
+                    ThrowModuleError(errorMessage, occurredError.Message);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
 
@@ -386,12 +386,12 @@ namespace DataImportClient.Modules
 
                 ImportWorkerLog("Inserting the fetched data set into the database.");
 
-                occuredError = await InsertDataIntoDatabase(weatherConfiguration.sqlConnectionString, weatherConfiguration.dbTableName, weatherData, cancellationToken);
+                occurredError = await InsertDataIntoDatabase(weatherConfiguration.sqlConnectionString, weatherConfiguration.dbTableName, weatherData, cancellationToken);
 
-                if (occuredError != null)
+                if (occurredError != null)
                 {
-                    string errorMessage = "An error has occured while inserting the data into the database.";
-                    ThrowModuleError(errorMessage, occuredError.Message);
+                    string errorMessage = "An error has occurred while inserting the data into the database.";
+                    ThrowModuleError(errorMessage, occurredError.Message);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
 
@@ -412,7 +412,7 @@ namespace DataImportClient.Modules
             }
         }
 
-        private static async Task<(WeatherConfiguration weatherConfiguration, Exception? occuredError)> GetConfigurationValues()
+        private static async Task<(WeatherConfiguration weatherConfiguration, Exception? occurredError)> GetConfigurationValues()
         {
             JObject savedConfiguration;
 
@@ -496,7 +496,7 @@ namespace DataImportClient.Modules
             }
         }
 
-        private static async Task<(WeatherData weatherData, Exception? occuredError)> FetchApiData(string apiUrl, CancellationToken cancellationToken)
+        private static async Task<(WeatherData weatherData, Exception? occurredError)> FetchApiData(string apiUrl, CancellationToken cancellationToken)
         {
             JObject apiData = [];
 

@@ -329,12 +329,12 @@ namespace DataImportClient.Modules
             {
                 ImportWorkerLog("Fetching settings from configuration file.");
                 
-                (ElectricityConfiguration electricityConfiguration, Exception? occuredError) = await GetConfigurationValues();
+                (ElectricityConfiguration electricityConfiguration, Exception? occurredError) = await GetConfigurationValues();
 
-                if (occuredError != null)
+                if (occurredError != null)
                 {
-                    string errorMessage = "An error has occured while fetching the settings.";
-                    ThrowModuleError(errorMessage, occuredError.Message);
+                    string errorMessage = "An error has occurred while fetching the settings.";
+                    ThrowModuleError(errorMessage, occurredError.Message);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
 
@@ -360,12 +360,12 @@ namespace DataImportClient.Modules
 
                 ImportWorkerLog("Trying to fetch data from a PLC source file.");
 
-                (List<string> sourceFileData, bool foundMultipleFiles, occuredError) = await GetSourceFileData(sourceFilePath, sourceFilePattern);
+                (List<string> sourceFileData, bool foundMultipleFiles, occurredError) = await GetSourceFileData(sourceFilePath, sourceFilePattern);
 
-                if (occuredError != null)
+                if (occurredError != null)
                 {
-                    string errorMessage = "An error has occured while fetching data form the PLC source file.";
-                    ThrowModuleError(errorMessage, occuredError.Message);
+                    string errorMessage = "An error has occurred while fetching data from the PLC source file.";
+                    ThrowModuleError(errorMessage, occurredError.Message);
 
                     MoveSourceFileToFaultyFilesFolder();
 
@@ -381,12 +381,12 @@ namespace DataImportClient.Modules
 
                 ImportWorkerLog("Minimizing the fetched data.");
 
-                (List<string> minimizedSourceData, occuredError) = MinimizeSourceFileData(sourceFileData);
+                (List<string> minimizedSourceData, occurredError) = MinimizeSourceFileData(sourceFileData);
 
-                if (occuredError != null)
+                if (occurredError != null)
                 {
-                    string errorMessage = "An error has occured while minimizing the fetched data.";
-                    ThrowModuleError(errorMessage, occuredError.Message);
+                    string errorMessage = "An error has occurred while minimizing the fetched data.";
+                    ThrowModuleError(errorMessage, occurredError.Message);
 
                     MoveSourceFileToFaultyFilesFolder();
 
@@ -406,12 +406,12 @@ namespace DataImportClient.Modules
                 string dbTableNamePowerfactor = electricityConfiguration.dbTableNamePowerfactor;
                 string sqlConnectionString = electricityConfiguration.sqlConnectionString;
 
-                occuredError = await InsertDataIntoDatabase(sqlConnectionString, dbTableNamePower, dbTableNamePowerfactor, minimizedSourceData, cancellationToken);
+                occurredError = await InsertDataIntoDatabase(sqlConnectionString, dbTableNamePower, dbTableNamePowerfactor, minimizedSourceData, cancellationToken);
 
-                if (occuredError != null)
+                if (occurredError != null)
                 {
-                    string errorMessage = "An error has occured while inserting the data into the database.";
-                    ThrowModuleError(errorMessage, occuredError.Message);
+                    string errorMessage = "An error has occurred while inserting the data into the database.";
+                    ThrowModuleError(errorMessage, occurredError.Message);
 
                     MoveSourceFileToFaultyFilesFolder();
 
@@ -460,7 +460,7 @@ namespace DataImportClient.Modules
             }
         }
 
-        private static async Task<(ElectricityConfiguration electricityConfiguration, Exception? occuredError)> GetConfigurationValues()
+        private static async Task<(ElectricityConfiguration electricityConfiguration, Exception? occurredError)> GetConfigurationValues()
         {
             JObject savedConfiguration;
 
@@ -544,7 +544,7 @@ namespace DataImportClient.Modules
             }
         }
         
-        private static async Task<(List<string> sourceData, bool foundMultipleFiles, Exception? occuredError)> GetSourceFileData(string sourceFilePath, string sourceFilePattern)
+        private static async Task<(List<string> sourceData, bool foundMultipleFiles, Exception? occurredError)> GetSourceFileData(string sourceFilePath, string sourceFilePattern)
         {
             bool multipleSourceFilesFound = false;
 
@@ -628,7 +628,7 @@ namespace DataImportClient.Modules
             return (finalSourceFileData, multipleSourceFilesFound, null);
         }
         
-        private static (List<string> minimizedSourceData, Exception? occuredError) MinimizeSourceFileData(List<string> sourceData)
+        private static (List<string> minimizedSourceData, Exception? occurredError) MinimizeSourceFileData(List<string> sourceData)
         {
             int valuesPerRow = 0;
             int valuesPerColumn = 0;
@@ -786,11 +786,11 @@ namespace DataImportClient.Modules
 
         private static async Task<Exception?> InsertDataIntoDatabase(string sqlConnectionString, string dbTableNamePower, string dbTableNamePowerfactor, List<string> sourceData, CancellationToken cancellationToken)
         {
-            (List<string> powerData, List<string> powerfactorData, Exception? occuredError) = SplitSourceData(sourceData);
+            (List<string> powerData, List<string> powerfactorData, Exception? occurredError) = SplitSourceData(sourceData);
             
-            if (occuredError != null)
+            if (occurredError != null)
             {
-                return new Exception("Failed to split the minimalized data set. " + occuredError.Message);
+                return new Exception("Failed to split the minimalized data set. " + occurredError.Message);
             }
 
             ImportWorkerLog("Successfully splitted the minimalized data set for the database import.");
@@ -955,7 +955,7 @@ namespace DataImportClient.Modules
             return null;
         }
 
-        private static (List<string> powerData, List<string> powerfactorData, Exception? occuredError) SplitSourceData(List<string> sourceData)
+        private static (List<string> powerData, List<string> powerfactorData, Exception? occurredError) SplitSourceData(List<string> sourceData)
         {
             List<string> powerData = [];
             List<string> powerfactorData = [];
