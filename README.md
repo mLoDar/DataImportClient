@@ -18,6 +18,7 @@ Sources are:
  - CSV files which are received over FTP
 
 This repository is part of the diploma thesis for the organization [DigitalHtlFootprint](https://github.com/DigitalHtlFootprint).
+
 <br>
 
 ---
