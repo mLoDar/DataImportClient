@@ -343,7 +343,7 @@ namespace DataImportClient.Modules
                 if (occuredError != null)
                 {
                     string errorMessage = "An error has occured while fetching the settings.";
-                    await ThrowModuleError(errorMessage, occuredError.Message);
+                    ThrowModuleError(errorMessage, occuredError.Message);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
 
@@ -372,7 +372,7 @@ namespace DataImportClient.Modules
                 if (occuredError != null)
                 {
                     string errorMessage = "An error has occured while fetching data from the API provider.";
-                    await ThrowModuleError(errorMessage, occuredError.Message);
+                    ThrowModuleError(errorMessage, occuredError.Message);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
 
@@ -391,7 +391,7 @@ namespace DataImportClient.Modules
                 if (occuredError != null)
                 {
                     string errorMessage = "An error has occured while inserting the data into the database.";
-                    await ThrowModuleError(errorMessage, occuredError.Message);
+                    ThrowModuleError(errorMessage, occuredError.Message);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
 
@@ -617,12 +617,12 @@ namespace DataImportClient.Modules
             _dateOfLastLogFileEntry = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
         }
 
-        private async Task ThrowModuleError(string errorMessage, string detailedError)
+        private void ThrowModuleError(string errorMessage, string detailedError)
         {
             ImportWorkerLog($"[ERROR] - {errorMessage}");
             ImportWorkerLog(detailedError, true);
 
-            await MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, errorMessage, detailedError);
+            MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, errorMessage, detailedError);
 
             State = ModuleState.Error;
             _errorCount++;
