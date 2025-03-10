@@ -26,6 +26,8 @@ namespace DataImportClient
             string appRelease = _appRuntime.appRelease;
 
             ActivityLogger.Log(_currentSection, string.Empty, true);
+            ActivityLogger.Log(_currentSection, string.Empty, true);
+            ActivityLogger.Log(_currentSection, string.Empty, true);
             ActivityLogger.Log(_currentSection, "Starting DataImportClient (C) Made in Austria");
             ActivityLogger.Log(_currentSection, $"Version '{appVersion}' | Release '{appRelease}'");
 
