@@ -12,6 +12,14 @@
 
 `DataImportClient` is a console based application, which allows to import data from various sources into a SQL database.
 
+<br>
+
+<p align="center">
+    <img style='height: 90%; width: 90%;' alt="MainMenu" src="readme-files/pictures/MainMenu.PNG"/>
+</p>
+
+<br>
+
 Sources are:
  - Different PLC's
  - API endpoints
