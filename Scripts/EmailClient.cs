@@ -89,9 +89,11 @@ namespace DataImportClient.Scripts
                 ActivityLogger.Log(_currentSection, $"Recipients: '{recipients}'", true);
                 ActivityLogger.Log(_currentSection, $"Subject: '{emailSubject}'", true);
                 ActivityLogger.Log(_currentSection, $"Body: '{emailBody}'", true);
-                ActivityLogger.Log(_currentSection, exception.Message, true);
+                ActivityLogger.Log(_currentSection, $"Exception: {exception.Message}", true);
                 return false;
             }
+
+            ActivityLogger.Log(_currentSection, $"Successfully sent a notification to all saved emails in the configuration.");
 
             return true;
         }
