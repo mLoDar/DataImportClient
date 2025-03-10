@@ -34,49 +34,58 @@ namespace DataImportClient.Modules
     {
         private const string _currentSection = "ErrorCache";
 
-        private readonly List<ErrorCacheEntry> _entries = [];
-        private readonly SemaphoreSlim _semaphore = new(1, 1);
-
-        const int maxEntries = 30;
-
         private static readonly ApplicationSettings.Paths _appPaths = new();
 
+        const int maxEntries = 30;
+        private readonly object _entriesLock = new();
+        private readonly List<ErrorCacheEntry> _entries = [];
 
+        
 
-        internal async Task AddEntry(string errorSection, string errorMessage, string detailedError)
+        internal void AddEntry(string errorSection, string errorMessage, string detailedError)
         {
-            await _semaphore.WaitAsync();
-
-            try
+            ErrorCacheEntry entry = new()
             {
-                ErrorCacheEntry entry = new()
-                {
-                    dateTime = DateTime.Now,
-                    processId = Environment.ProcessId,
-                    section = errorSection,
-                    error = errorMessage,
-                    detail = detailedError
-                };
+                dateTime = DateTime.Now,
+                processId = Environment.ProcessId,
+                section = errorSection,
+                error = errorMessage,
+                detail = detailedError
+            };
 
+
+
+            lock (_entriesLock)
+            {
                 if (_entries.Count + 1 > maxEntries)
                 {
                     _entries.RemoveAt(0);
                 }
 
                 _entries.Add(entry);
-
-                if (_entries.Count == 1 || _entries.Count % 10 == 0)
-                {
-                    string emailSubject = "Errors at DataImport";
-                    string emailBody = $"There {(_entries.Count > 1 ? "are" : "is")} currently {_entries.Count} error{(_entries.Count > 1 ? "s" : string.Empty)} which need{(_entries.Count > 1 ? "s" : string.Empty)} a manual review.";
-
-                    await EmailClient.SendEmail(errorSection, emailSubject, emailBody);
-                }
             }
-            finally
+
+
+
+            if (_entries.Count != 1 && _entries.Count % 10 != 0)
             {
-                _semaphore.Release();
+                return;
             }
+
+            string emailSubject = "Errors at DataImport";
+            string emailBody = $"There {(_entries.Count > 1 ? "are" : "is")} currently {_entries.Count} error{(_entries.Count > 1 ? string.Empty : "s")} which need{(_entries.Count > 1 ? "s" : string.Empty)} a manual review.";
+
+            Task.Run(async () =>
+                {
+                    bool emailSuccess = await EmailClient.SendEmail(errorSection, emailSubject, emailBody);
+
+                    if (emailSuccess == false)
+                    {
+                        ActivityLogger.Log(_currentSection, "[ERROR] - Failed to send an email!");
+                        ActivityLogger.Log(_currentSection, "Please check the error logs above to fix this error.", true);
+                    }
+                }
+            );
         }
 
         internal void RemoveSectionFromCache(string errorSection)
