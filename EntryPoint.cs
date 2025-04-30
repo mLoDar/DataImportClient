@@ -158,8 +158,8 @@ namespace DataImportClient
                         ["weather"] = new JObject()
                         {
                             ["apiUrl"] = "https://api.openweathermap.org/data/2.5/weather",
-                            ["apiKey"] = "yourApiKey",
-                            ["apiLocation"] = "City,CountryCode",
+                            ["apiKey"] = "REDACTED",
+                            ["apiLocation"] = "CITY,COUNTRYCODE",
                             ["apiIntervalSeconds"] = 300,
                             ["dbTableName"] = "dbo.Weather"
                         },
@@ -180,10 +180,10 @@ namespace DataImportClient
                         },
                         ["photovoltaic"] = new JObject()
                         {
-                            ["sourceFilePath"] = "folder/of/source/file",
-                            ["sourceFilePattern"] = "FILENAME.EXTENSION",
+                            ["solarwebEmail"] = "REDACTED",
+                            ["solarwebPassword"] = "REDACTED",
                             ["sourceFileIntervalSeconds"] = 300,
-                            ["dbTableName"] = "tableNameforImport",
+                            ["dbTableName"] = "dbo.Photovoltaic",
                         }
                     };
 
