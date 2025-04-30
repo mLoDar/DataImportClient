@@ -200,7 +200,27 @@ GO
 
 
 
--- TODO: Create "Photovoltaic" table
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name = 'Photovoltaic' AND xtype = 'U')
+    BEGIN
+	
+        CREATE TABLE Photovoltaic (
+            import_id INT IDENTITY(1,1) PRIMARY KEY,
+			import_date DATE DEFAULT CAST(GETDATE() AS DATE),
+			import_time TIME(3) DEFAULT CAST(GETDATE() AS TIME(3)),
+			pv_leistung_watt DECIMAL(12, 2),
+        );
+
+        PRINT 'Successfully created a new table named "Photovoltaic".';
+
+    END
+ELSE
+    BEGIN
+
+        PRINT 'Skipping the creation of the table "Photovoltaic" as it already exists. Please check if the table contains all needed columns.';
+
+    END
+
+GO
 
 
 
