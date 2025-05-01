@@ -61,5 +61,11 @@
                 photovoltaicImportWorkerLogs = Path.Combine(photovoltaicFolder, "ImportWorkerLogs");
             }
         }
+
+        internal class Urls
+        {
+            internal readonly string solarwebLogin = "https://www.solarweb.com/Account/ExternalLogin";
+            internal readonly string photovoltaicApi = "https://www.solarweb.com/ActualData/GetCompareDataForPvSystem?pvSystemId={solarwebSystemId}&_={currentUnixMillis}";
+        }
     }
 }
