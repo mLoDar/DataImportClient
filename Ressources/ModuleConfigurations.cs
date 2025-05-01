@@ -48,5 +48,21 @@
                 return stringFields.Any(string.IsNullOrEmpty);
             }
         }
+
+        internal struct PhotovoltaicConfiguration
+        {
+            internal string solarwebEmail;
+            internal string solarwebPassword;
+            internal string solarwebSystemId;
+            internal string apiIntervalSeconds;
+            internal string sqlConnectionString;
+            internal string dbTableName;
+
+            internal readonly bool HoldsInvalidValues()
+            {
+                var stringFields = new string[] { solarwebEmail, solarwebPassword, solarwebSystemId, apiIntervalSeconds, sqlConnectionString, dbTableName };
+                return stringFields.Any(string.IsNullOrEmpty);
+            }
+        }
     }
 }

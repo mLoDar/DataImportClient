@@ -182,6 +182,7 @@ namespace DataImportClient
                         {
                             ["solarwebEmail"] = "REDACTED",
                             ["solarwebPassword"] = "REDACTED",
+                            ["solarwebSystemId"] = "REDACTED",
                             ["sourceFileIntervalSeconds"] = 300,
                             ["dbTableName"] = "dbo.Photovoltaic",
                         }
