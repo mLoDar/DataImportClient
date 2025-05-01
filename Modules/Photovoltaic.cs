@@ -1,6 +1,13 @@
-﻿using System.Globalization;
+﻿using System.Diagnostics;
+using System.Globalization;
 
 using DataImportClient.Scripts;
+using DataImportClient.Ressources;
+using static DataImportClient.Ressources.ModuleConfigurations;
+
+using Newtonsoft.Json.Linq;
+using Microsoft.Data.SqlClient;
+using Microsoft.Playwright;
 
 
 
@@ -25,6 +32,13 @@ namespace DataImportClient.Modules
         private static string _formattedErrorCount = string.Empty;
         private static string _formattedServiceRunning = string.Empty;
         private static string _formattedLastLogFileEntry = string.Empty;
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "<Pending>")]
+        private static Task _importWorker = new(() => { });
+
+        private static CancellationTokenSource _cancellationTokenSource = new();
+
+        private static readonly ApplicationSettings.Paths _appPaths = new();
 
 
 
@@ -68,6 +82,13 @@ namespace DataImportClient.Modules
 
             _dateOfLastImport = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
             _dateOfLastLogFileEntry = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
+
+
+
+            _cancellationTokenSource = new();
+            CancellationToken cancellationToken = _cancellationTokenSource.Token;
+
+            _importWorker = Task.Run(() => ImportApiData(cancellationToken));
         }
 
 
@@ -142,12 +163,69 @@ namespace DataImportClient.Modules
             switch (_navigationXPosition)
             {
                 case 1:
+                    try
+                    {
+                        string importWorkerLogsFolder = _appPaths.photovoltaicImportWorkerLogs;
+                        Process.Start("explorer.exe", importWorkerLogsFolder);
+
+                        ActivityLogger.Log(_currentSection, "Opened the folder for the import worker logs of the current module.");
+                    }
+                    catch (Exception exception)
+                    {
+                        ActivityLogger.Log(_currentSection, "[ERROR] Failed to open the folder for import worker logs of the current module.");
+                        ActivityLogger.Log(_currentSection, exception.Message, true);
+
+                        string title = "Failed to perform this action.";
+                        string description = "Please check the error log for detailed information.";
+
+                        await ConsoleHelper.DisplayInformation(title, description, ConsoleColor.Red);
+                    }
                     break;
 
                 case 2:
+                    if (_serviceRunning == true)
+                    {
+                        ActivityLogger.Log(_currentSection, "Stopping the active import worker of the current module.");
+                        ImportWorkerLog("Stopping the active import worker of the current module.");
+
+                        _cancellationTokenSource?.Cancel();
+                        _moduleState = ModuleState.Stopped;
+                        _serviceRunning = false;
+                        break;
+                    }
+
+                    ActivityLogger.Log(_currentSection, "Starting a new import worker for the current module.");
+                    ImportWorkerLog(string.Empty, true);
+                    ImportWorkerLog("Starting a new import worker for the current module.");
+
+
+
+                    if (ErrorCount <= 0)
+                    {
+                        _moduleState = ModuleState.Running;
+                    }
+
+                    _cancellationTokenSource = new();
+                    CancellationToken cancellationToken = _cancellationTokenSource.Token;
+
+                    _serviceRunning = true;
+
+                    _importWorker = Task.Run(() => ImportApiData(cancellationToken));
+
                     break;
 
                 case 3:
+                    ActivityLogger.Log(_currentSection, $"Clearing errors for the current module. Previous error count: '{_errorCount}'.");
+
+                    if (State != ModuleState.Stopped)
+                    {
+                        _moduleState = ModuleState.Running;
+                    }
+
+                    _errorCount = 0;
+
+                    MainMenu._sectionMiscellaneous.errorCache.RemoveSectionFromCache(_currentSection);
+
                     break;
 
                 case 4:
@@ -232,6 +310,27 @@ namespace DataImportClient.Modules
             {
                 _formattedLastLogFileEntry = $"\u001b[91mx\u001b[97m │ Updated at '\u001b[91m{_dateOfLastLogFileEntry}\u001b[97m'";
             }
+        }
+
+        private async Task ImportApiData(CancellationToken cancellationToken)
+        {
+        }
+
+        private static void ImportWorkerLog(string message, bool removePrefix = false)
+        {
+            ImportLogger.Log(_currentSection, message, removePrefix);
+            _dateOfLastLogFileEntry = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
+        }
+
+        private void ThrowModuleError(string errorMessage, string detailedError)
+        {
+            ImportWorkerLog($"[ERROR] - {errorMessage}");
+            ImportWorkerLog(detailedError, true);
+
+            MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, errorMessage, detailedError);
+
+            State = ModuleState.Error;
+            _errorCount++;
         }
     }
 }
