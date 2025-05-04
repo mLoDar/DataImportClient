@@ -3,6 +3,8 @@
 using DataImportClient.Scripts;
 using DataImportClient.Ressources;
 
+using Newtonsoft.Json.Linq;
+
 
 
 
@@ -72,11 +74,49 @@ namespace DataImportClient.Modules
                 return;
             }
 
+
             string emailSubject = "Errors at DataImport";
             string emailBody = $"There {(_entries.Count > 1 ? "are" : "is")} currently {_entries.Count} error{(_entries.Count > 1 ? string.Empty : "s")} which need{(_entries.Count > 1 ? "s" : string.Empty)} a manual review.";
 
             Task.Run(async () =>
                 {
+                    JObject savedConfiguration;
+
+                    try
+                    {
+                        savedConfiguration = await ConfigurationHelper.LoadConfiguration();
+
+                        if (savedConfiguration["error"] != null)
+                        {
+                            throw new Exception($"Saved configuration file contains errors. Error: {savedConfiguration["error"]}");
+                        }
+                    }
+                    catch (Exception exception)
+                    {
+                        ActivityLogger.Log(_currentSection, "[ERROR] - Failed to check if application should send an email!");
+                        ActivityLogger.Log(_currentSection, $"Exception: {exception.Message}", true);
+
+                        return;
+                    }
+
+
+
+                    JToken? emailAlertsActive = savedConfiguration?["emailAlerts"]?["featureActive"];
+
+                    if (emailAlertsActive == null)
+                    {
+                        ActivityLogger.Log(_currentSection, "[ERROR] - Failed to check if application should send an email!");
+                        ActivityLogger.Log(_currentSection, $"Exception: Variable 'emailAlerts.featureActive' within the configuration file is null.", true);
+                        return;
+                    }
+
+                    if (emailAlertsActive.ToString().ToLower().Equals("false"))
+                    {
+                        return;
+                    }
+
+
+
                     bool emailSuccess = await EmailClient.SendEmail(errorSection, emailSubject, emailBody);
 
                     if (emailSuccess == false)
