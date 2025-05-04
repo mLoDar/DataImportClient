@@ -365,14 +365,17 @@ namespace DataImportClient.Modules
 
                 ImportWorkerLog("Trying to fetch data from a PLC source file.");
 
-                (List<string> sourceFileData, bool foundMultipleFiles, occurredError) = await GetSourceFileData(sourceFilePath, sourceFilePattern);
+                (List<string> sourceFileData, bool foundMultipleFiles, bool noFilesFound, occurredError) = await GetSourceFileData(sourceFilePath, sourceFilePattern);
 
                 if (occurredError != null)
                 {
                     string errorMessage = "An error has occurred while fetching data from the PLC source file.";
                     ThrowModuleError(errorMessage, occurredError.Message);
 
-                    MoveSourceFileToFaultyFilesFolder();
+                    if (noFilesFound == false)
+                    {
+                        MoveSourceFileToFaultyFilesFolder();
+                    }
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
 
@@ -396,7 +399,10 @@ namespace DataImportClient.Modules
                     string errorMessage = "An error has occurred while inserting the data into the database.";
                     ThrowModuleError(errorMessage, occurredError.Message);
 
-                    MoveSourceFileToFaultyFilesFolder();
+                    if (noFilesFound == false)
+                    {
+                        MoveSourceFileToFaultyFilesFolder();
+                    }
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
 
@@ -526,13 +532,13 @@ namespace DataImportClient.Modules
             }
         }
 
-        private static async Task<(List<string> sourceData, bool foundMultipleFiles, Exception? occurredError)> GetSourceFileData(string sourceFilePath, string sourceFilePattern)
+        private static async Task<(List<string> sourceData, bool foundMultipleFiles, bool noFilesFound, Exception? occurredError)> GetSourceFileData(string sourceFilePath, string sourceFilePattern)
         {
             bool multipleSourceFilesFound = false;
 
             if (Directory.Exists(sourceFilePath) == false)
             {
-                return ([], multipleSourceFilesFound, new Exception("Failed to find the source file folder path specified in the configuration."));
+                return ([], multipleSourceFilesFound, true, new Exception("Failed to find the source file folder path specified in the configuration."));
             }
 
 
@@ -562,7 +568,7 @@ namespace DataImportClient.Modules
 
             if (fileMatches.Count <= 0)
             {
-                return ([], multipleSourceFilesFound, new Exception("Failed to find any source files which match the configuration."));
+                return ([], multipleSourceFilesFound, true, new Exception("Failed to find any source files which match the configuration."));
             }
 
             if (fileMatches.Count > 1)
@@ -582,7 +588,7 @@ namespace DataImportClient.Modules
             }
             catch (Exception exception)
             {
-                return ([], multipleSourceFilesFound, exception);
+                return ([], multipleSourceFilesFound, false, exception);
             }
 
 
@@ -602,7 +608,7 @@ namespace DataImportClient.Modules
 
 
 
-            return (finalSourceFileData, multipleSourceFilesFound, null);
+            return (finalSourceFileData, multipleSourceFilesFound, false, null);
         }
 
         private static async Task<Exception?> InsertDataIntoDatabase(string sqlConnectionString, string dbTableName, List<string> sourceData, CancellationToken cancellationToken)
