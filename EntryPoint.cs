@@ -89,6 +89,8 @@ namespace DataImportClient
 
 
 
+            await PlaywrightInstallation();
+
             await MainMenu.Main();
 
 
@@ -96,6 +98,23 @@ namespace DataImportClient
             ActivityLogger.Log(_currentSection, "Shutting down DataImportClient ...");
 
             Environment.Exit(0);
+        }
+
+        private static async Task PlaywrightInstallation()
+        {
+            Console.Clear();
+            Console.SetCursorPosition(0, 4);
+            Console.WriteLine("             DataImportClient (C) Made in Austria     ");
+            Console.WriteLine("             ──────────────────────────────────────────");
+            Console.WriteLine("             Installing dependencies, please be patient");
+            Console.WriteLine();
+            Console.WriteLine();
+            Console.WriteLine();
+
+            await Task.Run(() =>
+            {
+                Microsoft.Playwright.Program.Main(["install"]);
+            });
         }
 
         private static async Task<(bool successfullyCreated, Exception occurredError)> CreateDiskFolderStructure()

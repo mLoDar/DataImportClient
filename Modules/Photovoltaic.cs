@@ -599,20 +599,26 @@ namespace DataImportClient.Modules
 
         private static async Task<bool> CreatePlaywrightInstance(PhotovoltaicConfiguration photovoltaicConfiguration)
         {
-            Microsoft.Playwright.Program.Main(["install"]);
-
-            BrowserTypeLaunchOptions browserTypeLaunchOptions = new()
+            try
             {
-                Headless = true
-            };
+                BrowserTypeLaunchOptions browserTypeLaunchOptions = new()
+                {
+                    Headless = true
+                };
 
+                _playwrightInstance = await Playwright.CreateAsync();
+                _playwrightBrowser = await _playwrightInstance.Chromium.LaunchAsync(browserTypeLaunchOptions);
+                _playwrightContext = await _playwrightBrowser.NewContextAsync();
+                _playwrightPage = await _playwrightContext.NewPageAsync();
+            }
+            catch (Exception exception)
+            {
+                ImportWorkerLog("Encountered an unexpected error while launching a new playwright instance.");
+                ImportWorkerLog(exception.Message);
 
-
-            _playwrightInstance = await Playwright.CreateAsync();
-            _playwrightBrowser = await _playwrightInstance.Chromium.LaunchAsync(browserTypeLaunchOptions);
-            _playwrightContext = await _playwrightBrowser.NewContextAsync();
-            _playwrightPage = await _playwrightContext.NewPageAsync();
-
+                return false;
+            }
+            
             ImportWorkerLog("Created playwright instances.");
 
 
