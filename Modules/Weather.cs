@@ -358,10 +358,19 @@ namespace DataImportClient.Modules
                 string apiUrl = weatherConfiguration.apiUrl;
                 string apiKey = weatherConfiguration.apiKey;
                 string apiLocation = weatherConfiguration.apiLocation;
-                string apiIntervalSeconds = weatherConfiguration.apiIntervalSeconds;
 
                 apiUrl += $"?q={apiLocation}&appid={apiKey}&mode=json&units=metric";
-                int apiSleepTimer = Convert.ToInt32(apiIntervalSeconds) * 1000;
+
+                if (int.TryParse(weatherConfiguration.apiIntervalSeconds, out int apiSleepTimer) == false)
+                {
+                    string errorMessage = "An error has occurred while assigning variables.";
+                    ThrowModuleError(errorMessage, "Failed to parse 'apiIntervalSeconds' to int.");
+
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
 
 
 

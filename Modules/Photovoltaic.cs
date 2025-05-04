@@ -356,9 +356,16 @@ namespace DataImportClient.Modules
 
 
 
-                string apiIntervalSeconds = photovoltaicConfiguration.apiIntervalSeconds;
+                if (int.TryParse(photovoltaicConfiguration.apiIntervalSeconds, out int apiSleepTimer) == false)
+                {
+                    string errorMessage = "An error has occurred while assigning variables.";
+                    ThrowModuleError(errorMessage, "Failed to parse 'apiIntervalSeconds' to int.");
 
-                int apiSleepTimer = Convert.ToInt32(apiIntervalSeconds) * 1000;
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
 
 
 

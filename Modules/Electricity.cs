@@ -348,9 +348,17 @@ namespace DataImportClient.Modules
 
                 string sourceFilePath = electricityConfiguration.sourceFilePath;
                 string sourceFilePattern = electricityConfiguration.sourceFilePattern;
-                string sourceFileIntervalSeconds = electricityConfiguration.sourceFileIntervalSeconds;
 
-                int apiSleepTimer = Convert.ToInt32(sourceFileIntervalSeconds) * 1000;
+                if (int.TryParse(electricityConfiguration.sourceFileIntervalSeconds, out int sourceFileIntervalSeconds) == false)
+                {
+                    string errorMessage = "An error has occurred while assigning variables.";
+                    ThrowModuleError(errorMessage, "Failed to parse 'sourceFileIntervalSeconds' to int.");
+
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
 
 
 
@@ -454,9 +462,9 @@ namespace DataImportClient.Modules
 
 
 
-                ImportWorkerLog($"Going to sleep for {apiSleepTimer / 1000} seconds.");
+                ImportWorkerLog($"Going to sleep for {sourceFileIntervalSeconds / 1000} seconds.");
 
-                await Task.Delay(apiSleepTimer, cancellationToken);
+                await Task.Delay(sourceFileIntervalSeconds, cancellationToken);
             }
         }
 
