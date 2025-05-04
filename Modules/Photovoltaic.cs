@@ -38,7 +38,21 @@ namespace DataImportClient.Modules
 
         private static CancellationTokenSource _cancellationTokenSource = new();
 
+        private static readonly ApplicationSettings.Urls _appUrls = new();
         private static readonly ApplicationSettings.Paths _appPaths = new();
+        
+
+
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
+
+        private static IPlaywright _playwrightInstance;
+        private static IBrowser _playwrightBrowser;
+        private static IBrowserContext _playwrightContext;
+        private static IPage _playwrightPage;
+
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
+
+        private static long _unixMillisNextSessionCreation = 0;
 
 
 
@@ -314,6 +328,376 @@ namespace DataImportClient.Modules
 
         private async Task ImportApiData(CancellationToken cancellationToken)
         {
+            ImportWorkerLog(string.Empty, true);
+            ImportWorkerLog("Starting a new import worker for the current module.");
+
+            int errorTimoutInMilliseconds = 5 * 30 * 1000;
+
+
+
+            while (true)
+            {
+                ImportWorkerLog("Fetching settings from configuration file.");
+
+                (PhotovoltaicConfiguration photovoltaicConfiguration, Exception? occurredError) = await GetConfigurationValues();
+
+                if (occurredError != null)
+                {
+                    string errorMessage = "An error has occurred while fetching the settings.";
+                    ThrowModuleError(errorMessage, occurredError.Message);
+
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
+
+                ImportWorkerLog("Successfully fetched settings.");
+
+
+
+                string apiIntervalSeconds = photovoltaicConfiguration.apiIntervalSeconds;
+
+                int apiSleepTimer = Convert.ToInt32(apiIntervalSeconds) * 1000;
+
+
+
+                ImportWorkerLog("Contacting the API and requesting a data set.");
+
+                (decimal currentPvPower, occurredError) = await FetchApiData(photovoltaicConfiguration, cancellationToken);
+
+                if (occurredError != null)
+                {
+                    string errorMessage = "An error has occurred while fetching data from the API provider.";
+                    ThrowModuleError(errorMessage, occurredError.Message);
+
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
+
+                ImportWorkerLog("Successfully fetched the data set from the API.");
+
+
+
+                ImportWorkerLog("Inserting the fetched data set into the database.");
+
+                occurredError = await InsertDataIntoDatabase(photovoltaicConfiguration.sqlConnectionString, photovoltaicConfiguration.dbTableName, currentPvPower, cancellationToken);
+
+                if (occurredError != null)
+                {
+                    string errorMessage = "An error has occurred while inserting the data into the database.";
+                    ThrowModuleError(errorMessage, occurredError.Message);
+
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
+
+                    await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
+                    continue;
+                }
+
+                ImportWorkerLog("Successfully inserted the API data into the database.");
+
+
+
+                _dateOfLastImport = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
+
+
+
+                ImportWorkerLog($"Going to sleep for {apiSleepTimer / 1000} seconds.");
+                await Task.Delay(apiSleepTimer, cancellationToken);
+            }
+        }
+
+        private static async Task<(PhotovoltaicConfiguration photovoltaicConfiguration, Exception? occurredError)> GetConfigurationValues()
+        {
+            JObject savedConfiguration;
+
+            try
+            {
+                savedConfiguration = await ConfigurationHelper.LoadConfiguration();
+
+                if (savedConfiguration["error"] != null)
+                {
+                    throw new Exception($"Saved configuration file contains errors. Error: {savedConfiguration["error"]}");
+                }
+            }
+            catch (Exception exception)
+            {
+                return (new PhotovoltaicConfiguration(), exception);
+            }
+
+
+
+            JObject modules;
+            JObject photovoltaicModule;
+            JObject sqlData;
+
+            try
+            {
+                modules = savedConfiguration["modules"] as JObject ?? [];
+
+                if (modules == null || modules == new JObject())
+                {
+                    throw new Exception("Configuration file does not contain a 'modules' object.");
+                }
+
+                photovoltaicModule = modules?["photovoltaic"] as JObject ?? [];
+
+                if (photovoltaicModule == null || photovoltaicModule == new JObject())
+                {
+                    throw new Exception("Configuration file does not contain a 'photovoltaic' module.");
+                }
+
+                sqlData = savedConfiguration["sql"] as JObject ?? [];
+
+                if (sqlData == null || sqlData == new JObject())
+                {
+                    throw new Exception("Configuration file does not contain a 'sql' object.");
+                }
+            }
+            catch (Exception exception)
+            {
+                return (new PhotovoltaicConfiguration(), exception);
+            }
+
+
+
+            try
+            {
+                PhotovoltaicConfiguration photovoltaicConfiguration = new()
+                {
+                    solarwebEmail = photovoltaicModule?["solarwebEmail"]?.ToString() ?? string.Empty,
+                    solarwebPassword = photovoltaicModule?["solarwebPassword"]?.ToString() ?? string.Empty,
+                    solarwebSystemId = photovoltaicModule?["solarwebSystemId"]?.ToString() ?? string.Empty,
+                    apiIntervalSeconds = photovoltaicModule?["apiIntervalSeconds"]?.ToString() ?? string.Empty,
+                    sqlConnectionString = sqlData?["connectionString"]?.ToString() ?? string.Empty,
+                    dbTableName = photovoltaicModule?["dbTableName"]?.ToString() ?? string.Empty
+                };
+
+                if (photovoltaicConfiguration.HoldsInvalidValues() == true)
+                {
+                    throw new Exception("One or mulitple configuration values are null. Please check the configuration file!");
+                }
+
+                if (int.TryParse(photovoltaicConfiguration.apiIntervalSeconds, out int _) == false)
+                {
+                    throw new Exception("Failed to parse the provided API interval to a number.");
+                }
+
+                return (photovoltaicConfiguration, null);
+            }
+            catch (Exception exception)
+            {
+                return (new PhotovoltaicConfiguration(), exception);
+            }
+        }
+        
+        private static async Task<(decimal currentPvPower, Exception? occurredError)> FetchApiData(PhotovoltaicConfiguration photovoltaicConfiguration, CancellationToken cancellationToken)
+        {
+            long currentUnixMillis = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+
+            if (currentUnixMillis > _unixMillisNextSessionCreation || _playwrightContext == null)
+            {
+                try
+                {
+                    await _playwrightBrowser.CloseAsync();
+                }
+                catch
+                {
+
+                }
+
+                bool browserCreated = await CreatePlaywrightInstance(photovoltaicConfiguration);
+
+                if (browserCreated == false)
+                {
+                    return (0, new Exception("An error has occurred while creating a new playwright instance."));
+                }
+
+                long oneDayInMillis = 24 * 60 * 60 * 1000;
+                _unixMillisNextSessionCreation = currentUnixMillis + oneDayInMillis;
+            }
+
+
+
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            IReadOnlyList<BrowserContextCookiesResult> currentBrowserCookies = await _playwrightContext.CookiesAsync();
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+
+            string cookieHeader = string.Join("; ", currentBrowserCookies.Select(cookie => $"{cookie.Name}={cookie.Value}"));
+
+            ImportWorkerLog("Retreived all cookies from the current playwright instance.");
+
+
+
+            string requestUrl = _appUrls.photovoltaicApi;
+            requestUrl = requestUrl.Replace("{solarwebSystemId}", photovoltaicConfiguration.solarwebSystemId);
+            requestUrl = requestUrl.Replace("{currentUnixMillis}", currentUnixMillis.ToString());
+
+            HttpClient httpClient = new();
+            HttpRequestMessage apiRequest = new(HttpMethod.Get, requestUrl);
+
+            Dictionary<string, string> apiRequestHeaders = new()
+            {
+                { "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36" },
+                { "Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8" },
+                { "Accept-Encoding", "gzip, deflate, br, zstd" },
+                { "Accept-Language", "en-US,en;q=0.9" },
+                { "DNT", "1" },
+                { "Upgrade-Insecure-Requests", "1" },
+                { "Sec-Fetch-Dest", "document" },
+                { "Sec-Fetch-Mode", "navigate" },
+                { "Sec-Fetch-Site", "none" },
+                { "Sec-Fetch-User", "?1" },
+                { "Sec-CH-UA", "\"Google Chrome\";v=\"135\", \"Not-A.Brand\";v=\"8\", \"Chromium\";v=\"135\"" },
+                { "Sec-CH-UA-Mobile", "?0" },
+                { "Sec-CH-UA-Platform", "\"Windows\"" },
+                { "Cookie", cookieHeader }
+            };
+
+            foreach (var header in apiRequestHeaders)
+            {
+                apiRequest.Headers.Add(header.Key, header.Value);
+            }
+
+
+
+            JObject parsedApiResponse = [];
+            string apiResponse = string.Empty;
+
+            try
+            {
+                HttpResponseMessage httpResponseMessage = await httpClient.SendAsync(apiRequest, cancellationToken);
+                httpResponseMessage.EnsureSuccessStatusCode();
+
+                apiResponse = await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                return (0, exception);
+            }
+
+
+
+            decimal currentPvPower;
+
+            try
+            {
+                parsedApiResponse = JObject.Parse(apiResponse);
+                currentPvPower = decimal.Parse(parsedApiResponse["P_PV"]?.ToString() ?? string.Empty);
+            }
+            catch
+            {
+                return (0, new Exception("Failed to parse the API response or extract the current PV power."));
+            }
+
+
+
+            return (currentPvPower, null);
+        }
+
+        private static async Task<bool> CreatePlaywrightInstance(PhotovoltaicConfiguration photovoltaicConfiguration)
+        {
+            Microsoft.Playwright.Program.Main(["install"]);
+
+            BrowserTypeLaunchOptions browserTypeLaunchOptions = new()
+            {
+                Headless = true
+            };
+
+
+
+            _playwrightInstance = await Playwright.CreateAsync();
+            _playwrightBrowser = await _playwrightInstance.Chromium.LaunchAsync(browserTypeLaunchOptions);
+            _playwrightContext = await _playwrightBrowser.NewContextAsync();
+            _playwrightPage = await _playwrightContext.NewPageAsync();
+
+            ImportWorkerLog("Created playwright instances.");
+
+
+
+            try
+            {
+                await _playwrightPage.RouteAsync("**/*", route =>
+                {
+                    if (route.Request.Url.Contains("consent"))
+                    {
+                        route.AbortAsync();
+                    }
+                    else
+                    {
+                        route.ContinueAsync();
+                    }
+                }
+                );
+
+                ImportWorkerLog("Handled cookie banner.");
+
+                string solarwebLogin = _appUrls.solarwebLogin;
+                await _playwrightPage.GotoAsync(solarwebLogin);
+
+                ImportWorkerLog("Went to the login page.");
+
+                await _playwrightPage.WaitForSelectorAsync("input[id='usernameUserInput']", new() { Timeout = 10000, State = WaitForSelectorState.Visible });
+                await _playwrightPage.FillAsync("input[id='usernameUserInput']", photovoltaicConfiguration.solarwebEmail);
+                await _playwrightPage.FillAsync("input[id='password']", photovoltaicConfiguration.solarwebPassword);
+                
+                await _playwrightPage.WaitForSelectorAsync("button#login-button", new() { Timeout = 10000, State = WaitForSelectorState.Visible });
+                await _playwrightPage.ClickAsync("button#login-button");
+
+                ImportWorkerLog("Submitted login information.");
+
+                await _playwrightPage.WaitForURLAsync("**/PvSystems/PvSystem?pvSystemId=*", new() { Timeout = 10000 });
+            }
+            catch (Exception exception)
+            {
+                ImportWorkerLog("Encountered an error while creating a browser instance:");
+                ImportWorkerLog(exception.Message);
+
+                return false;
+            }
+
+            ImportWorkerLog("Successfully logged in.");
+
+            return true;
+        }
+
+        private static async Task<Exception?> InsertDataIntoDatabase(string sqlConnectionString, string dbTableName, decimal currentPvPower, CancellationToken cancellationToken)
+        {
+            SqlConnection databaseConnection = new(sqlConnectionString);
+
+            try
+            {
+                await databaseConnection.OpenAsync(cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                return exception;
+            }
+
+            ImportWorkerLog("Successfully established a database connection.");
+
+
+
+            try
+            {
+                string queryNames = "pv_leistung_watt";
+                string queryValues = "@pv_leistung_watt";
+                string insertDataQuery = $"INSERT INTO {dbTableName} ({queryNames}) VALUES ({queryValues});";
+
+                using SqlCommand insertCommand = new(insertDataQuery, databaseConnection);
+
+                insertCommand.Parameters.AddWithValue("@pv_leistung_watt", currentPvPower);
+
+                await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                return exception;
+            }
+
+            return null;
         }
 
         private static void ImportWorkerLog(string message, bool removePrefix = false)
