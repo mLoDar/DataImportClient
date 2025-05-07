@@ -344,7 +344,8 @@ namespace DataImportClient.Modules
                 if (occurredError != null)
                 {
                     string errorMessage = "An error has occurred while fetching the settings.";
-                    ThrowModuleError(errorMessage, occurredError.Message);
+                    string[] errorDetails = [occurredError.Message, occurredError.InnerException?.ToString() ?? string.Empty];
+                    ThrowModuleError(errorMessage, errorDetails);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
 
@@ -359,7 +360,8 @@ namespace DataImportClient.Modules
                 if (int.TryParse(photovoltaicConfiguration.apiIntervalSeconds, out int apiSleepTimer) == false)
                 {
                     string errorMessage = "An error has occurred while assigning variables.";
-                    ThrowModuleError(errorMessage, "Failed to parse 'apiIntervalSeconds' to int.");
+                    string[] errorDetails = ["Failed to parse 'apiIntervalSeconds' to int."];
+                    ThrowModuleError(errorMessage, errorDetails);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
 
@@ -372,11 +374,12 @@ namespace DataImportClient.Modules
                 ImportWorkerLog("Contacting the API and requesting a data set.");
 
                 (decimal currentPvPower, occurredError) = await FetchApiData(photovoltaicConfiguration, cancellationToken);
-
+                
                 if (occurredError != null)
                 {
                     string errorMessage = "An error has occurred while fetching data from the API provider.";
-                    ThrowModuleError(errorMessage, occurredError.Message);
+                    string[] errorDetails = [occurredError.Message, occurredError.InnerException?.ToString() ?? string.Empty];
+                    ThrowModuleError(errorMessage, errorDetails);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
 
@@ -395,7 +398,8 @@ namespace DataImportClient.Modules
                 if (occurredError != null)
                 {
                     string errorMessage = "An error has occurred while inserting the data into the database.";
-                    ThrowModuleError(errorMessage, occurredError.Message);
+                    string[] errorDetails = [occurredError.Message, occurredError.InnerException?.ToString() ?? string.Empty];
+                    ThrowModuleError(errorMessage, errorDetails);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
 
@@ -573,16 +577,43 @@ namespace DataImportClient.Modules
             JObject parsedApiResponse = [];
             string apiResponse = string.Empty;
 
-            try
-            {
-                HttpResponseMessage httpResponseMessage = await httpClient.SendAsync(apiRequest, cancellationToken);
-                httpResponseMessage.EnsureSuccessStatusCode();
+            int maxRequestRetries = 5;
 
-                apiResponse = await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken);
-            }
-            catch (Exception exception)
+            for (int i = 0; i < maxRequestRetries; i++)
             {
-                return (0, exception);
+                try
+                {
+                    HttpResponseMessage httpResponseMessage = await httpClient.SendAsync(apiRequest, cancellationToken);
+                    httpResponseMessage.EnsureSuccessStatusCode();
+
+                    apiResponse = await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken);
+
+                    break;
+                }
+                catch (HttpRequestException httpRequestException) when (i < maxRequestRetries - 1)
+                {
+                    ImportWorkerLog($"[WARNING] - [Iteration {i}] - Exception of type 'HttpRequestException' was thrown.");
+
+                    if (httpRequestException.InnerException is System.Security.Authentication.AuthenticationException)
+                    {
+                        ImportWorkerLog("Exception is most likely related to an SSL error.", true);
+                        ImportWorkerLog(httpRequestException.Message, true);
+                    }
+                    else
+                    {
+                        ImportWorkerLog("Exception is most likely related to some general network related issue.", true);
+                        ImportWorkerLog(httpRequestException.Message, true);
+                    }
+
+                    int cooldownTimer = 1000 * (int)Math.Pow(2, i);
+                    ImportWorkerLog($"Retrying in {cooldownTimer} seconds.", true);
+
+                    await Task.Delay(cooldownTimer, cancellationToken);
+                }
+                catch (Exception exception)
+                {
+                    return (0, exception);
+                }
             }
 
 
@@ -719,12 +750,19 @@ namespace DataImportClient.Modules
             _dateOfLastLogFileEntry = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
         }
 
-        private void ThrowModuleError(string errorMessage, string detailedError)
+        private void ThrowModuleError(string errorMessage, string[] errorDetails)
         {
             ImportWorkerLog($"[ERROR] - {errorMessage}");
-            ImportWorkerLog(detailedError, true);
 
-            MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, errorMessage, detailedError);
+            foreach (string errorDetail in errorDetails)
+            {
+                if (string.IsNullOrWhiteSpace(errorDetail) == false)
+                {
+                    ImportWorkerLog(errorDetail, true);
+                }
+            }
+
+            MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, errorMessage, errorDetails[0]);
 
             State = ModuleState.Error;
             _errorCount++;
