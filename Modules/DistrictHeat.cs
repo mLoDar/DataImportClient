@@ -331,7 +331,8 @@ namespace DataImportClient.Modules
                 if (occurredError != null)
                 {
                     string errorMessage = "An error has occurred while fetching the settings.";
-                    ThrowModuleError(errorMessage, occurredError.Message);
+                    string[] errorDetails = [occurredError.Message, occurredError.InnerException?.ToString() ?? string.Empty];
+                    ThrowModuleError(errorMessage, errorDetails);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
 
@@ -349,7 +350,8 @@ namespace DataImportClient.Modules
                 if (int.TryParse(districtHeatConfiguration.sourceFileIntervalSeconds, out int sourceFileIntervalSeconds) == false)
                 {
                     string errorMessage = "An error has occurred while assigning variables.";
-                    ThrowModuleError(errorMessage, "Failed to parse 'sourceFileIntervalSeconds' to int.");
+                    string[] errorDetails = ["Failed to parse 'sourceFileIntervalSeconds' to int."];
+                    ThrowModuleError(errorMessage, errorDetails);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
 
@@ -370,7 +372,8 @@ namespace DataImportClient.Modules
                 if (occurredError != null)
                 {
                     string errorMessage = "An error has occurred while fetching data from the PLC source file.";
-                    ThrowModuleError(errorMessage, occurredError.Message);
+                    string[] errorDetails = [occurredError.Message, occurredError.InnerException?.ToString() ?? string.Empty];
+                    ThrowModuleError(errorMessage, errorDetails);
 
                     if (noFilesFound == false)
                     {
@@ -397,7 +400,8 @@ namespace DataImportClient.Modules
                 if (occurredError != null)
                 {
                     string errorMessage = "An error has occurred while inserting the data into the database.";
-                    ThrowModuleError(errorMessage, occurredError.Message);
+                    string[] errorDetails = [occurredError.Message, occurredError.InnerException?.ToString() ?? string.Empty];
+                    ThrowModuleError(errorMessage, errorDetails);
 
                     if (noFilesFound == false)
                     {
@@ -423,7 +427,8 @@ namespace DataImportClient.Modules
                 catch (Exception exception)
                 {
                     string errorMessage = "Failed to delete the source file.";
-                    ThrowModuleError(errorMessage, exception.Message);
+                    string[] errorDetails = [exception.Message, exception.InnerException?.ToString() ?? string.Empty];
+                    ThrowModuleError(errorMessage, errorDetails);
                 }
 
                 ImportWorkerLog("Successfully deleted the source file.");
@@ -753,12 +758,19 @@ namespace DataImportClient.Modules
             _dateOfLastLogFileEntry = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
         }
 
-        private void ThrowModuleError(string errorMessage, string detailedError)
+        private void ThrowModuleError(string errorMessage, string[] errorDetails)
         {
             ImportWorkerLog($"[ERROR] - {errorMessage}");
-            ImportWorkerLog(detailedError, true);
 
-            MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, errorMessage, detailedError);
+            foreach (string errorDetail in errorDetails)
+            {
+                if (string.IsNullOrWhiteSpace(errorDetail) == false)
+                {
+                    ImportWorkerLog(errorDetail, true);
+                }
+            }
+
+            MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, errorMessage, errorDetails[0]);
 
             State = ModuleState.Error;
             _errorCount++;
@@ -783,7 +795,9 @@ namespace DataImportClient.Modules
             }
             catch (Exception exception)
             {
-                ThrowModuleError("Failed to move the current source file.", exception.Message + $" File path: {_currentSourceFilePath}.");
+                string errorMessage = "Failed to move the current source file.";
+                string[] errorDetails = [exception.Message, exception.InnerException?.ToString() ?? string.Empty, $"File path: {_currentSourceFilePath}."];
+                ThrowModuleError(errorMessage, errorDetails);
             }
         }
     }
