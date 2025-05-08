@@ -346,7 +346,7 @@ namespace DataImportClient.Modules
                     string[] errorDetails = [occurredError.Message, occurredError.InnerException?.ToString() ?? string.Empty];
                     ThrowModuleError(errorMessage, errorDetails);
 
-                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
+                    ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
 
                     await Task.Delay(errorTimoutInMilliseconds, cancellationToken);
                     continue;
