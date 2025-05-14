@@ -471,9 +471,8 @@ namespace DataImportClient.Modules
 
 
 
-                ImportWorkerLog($"Going to sleep for {sourceFileIntervalSeconds / 1000} seconds.");
-
-                await Task.Delay(sourceFileIntervalSeconds, cancellationToken);
+                ImportWorkerLog($"Going to sleep for {sourceFileIntervalSeconds} seconds.");
+                await Task.Delay(sourceFileIntervalSeconds * 1000, cancellationToken);
             }
         }
 

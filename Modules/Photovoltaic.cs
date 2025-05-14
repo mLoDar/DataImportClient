@@ -415,8 +415,8 @@ namespace DataImportClient.Modules
 
 
 
-                ImportWorkerLog($"Going to sleep for {apiSleepTimer / 1000} seconds.");
-                await Task.Delay(apiSleepTimer, cancellationToken);
+                ImportWorkerLog($"Going to sleep for {apiSleepTimer} seconds.");
+                await Task.Delay(apiSleepTimer * 1000, cancellationToken);
             }
         }
 
