@@ -547,7 +547,7 @@ namespace DataImportClient.Modules
             requestUrl = requestUrl.Replace("{currentUnixMillis}", currentUnixMillis.ToString());
 
             HttpClient httpClient = new();
-            HttpRequestMessage apiRequest = new(HttpMethod.Get, requestUrl);
+            HttpRequestMessage apiRequest;
 
             Dictionary<string, string> apiRequestHeaders = new()
             {
@@ -567,11 +567,6 @@ namespace DataImportClient.Modules
                 { "Cookie", cookieHeader }
             };
 
-            foreach (var header in apiRequestHeaders)
-            {
-                apiRequest.Headers.Add(header.Key, header.Value);
-            }
-
 
 
             JObject parsedApiResponse = [];
@@ -583,6 +578,13 @@ namespace DataImportClient.Modules
             {
                 try
                 {
+                    apiRequest = new(HttpMethod.Get, requestUrl);
+
+                    foreach (var header in apiRequestHeaders)
+                    {
+                        apiRequest.Headers.Add(header.Key, header.Value);
+                    }
+
                     HttpResponseMessage httpResponseMessage = await httpClient.SendAsync(apiRequest, cancellationToken);
                     httpResponseMessage.EnsureSuccessStatusCode();
 
@@ -606,7 +608,7 @@ namespace DataImportClient.Modules
                     }
 
                     int cooldownTimer = 1000 * (int)Math.Pow(2, i);
-                    ImportWorkerLog($"Retrying in {cooldownTimer} seconds.", true);
+                    ImportWorkerLog($"Retrying in {cooldownTimer / 1000} seconds.", true);
 
                     await Task.Delay(cooldownTimer, cancellationToken);
                 }

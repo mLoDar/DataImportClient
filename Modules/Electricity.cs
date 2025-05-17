@@ -608,15 +608,39 @@ namespace DataImportClient.Modules
 
             _currentSourceFilePath = fileMatches[0];
 
-            string[] sourceFileData;
+            int maxReadRetries = 5;
+            string[] sourceFileData = [];
 
-            try
+            for (int i = 0; i < maxReadRetries; i++)
             {
-                sourceFileData = await File.ReadAllLinesAsync(_currentSourceFilePath);
+                try
+                {
+                    sourceFileData = await File.ReadAllLinesAsync(_currentSourceFilePath);
+
+                    break;
+                }
+                catch (IOException iOException) when (i < maxReadRetries - 1)
+                {
+                    ImportWorkerLog($"[WARNING] - [Iteration {i}] - Exception of type 'IOException' was thrown.");
+                    ImportWorkerLog("The desired source file is most likely used by another application at this moment.", true);
+                    ImportWorkerLog(iOException.Message, true);
+
+                    int cooldownTimer = 1000 * (int)Math.Pow(2, i);
+                    ImportWorkerLog($"Retrying in {cooldownTimer / 1000} seconds.", true);
+
+                    await Task.Delay(cooldownTimer);
+                }
+                catch (Exception exception)
+                {
+                    return ([], multipleSourceFilesFound, false, exception);
+                }
             }
-            catch (Exception exception)
+
+
+
+            if (sourceFileData.Length == 0)
             {
-                return ([], multipleSourceFilesFound, false, exception);
+                return ([], multipleSourceFilesFound, false, new Exception("Source file contains no data."));
             }
 
 

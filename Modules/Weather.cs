@@ -542,7 +542,7 @@ namespace DataImportClient.Modules
                     }
 
                     int cooldownTimer = 1000 * (int)Math.Pow(2, i);
-                    ImportWorkerLog($"Retrying in {cooldownTimer} seconds.", true);
+                    ImportWorkerLog($"Retrying in {cooldownTimer / 1000} seconds.", true);
 
                     await Task.Delay(cooldownTimer, cancellationToken);
                 }
