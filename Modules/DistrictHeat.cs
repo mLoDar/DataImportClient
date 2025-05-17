@@ -332,7 +332,7 @@ namespace DataImportClient.Modules
                 {
                     string errorMessage = "An error has occurred while fetching the settings.";
                     string[] errorDetails = [occurredError.Message, occurredError.InnerException?.ToString() ?? string.Empty];
-                    ThrowModuleError(errorMessage, errorDetails);
+                    ThrowModuleError(errorMessage, errorDetails, ErrorCategory.ConfigurationFetching);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds / 1000} seconds before continuing with the import process.");
 
@@ -351,7 +351,7 @@ namespace DataImportClient.Modules
                 {
                     string errorMessage = "An error has occurred while assigning variables.";
                     string[] errorDetails = ["Failed to parse 'sourceFileIntervalSeconds' to int."];
-                    ThrowModuleError(errorMessage, errorDetails);
+                    ThrowModuleError(errorMessage, errorDetails, ErrorCategory.IntegerParsing);
 
                     ImportWorkerLog($"Waiting for {errorTimoutInMilliseconds} seconds before continuing with the import process.");
 
@@ -373,7 +373,7 @@ namespace DataImportClient.Modules
                 {
                     string errorMessage = "An error has occurred while fetching data from the PLC source file.";
                     string[] errorDetails = [occurredError.Message, occurredError.InnerException?.ToString() ?? string.Empty];
-                    ThrowModuleError(errorMessage, errorDetails);
+                    ThrowModuleError(errorMessage, errorDetails, ErrorCategory.SourceFileDataFetching);
 
                     if (noFilesFound == false)
                     {
@@ -401,7 +401,7 @@ namespace DataImportClient.Modules
                 {
                     string errorMessage = "An error has occurred while inserting the data into the database.";
                     string[] errorDetails = [occurredError.Message, occurredError.InnerException?.ToString() ?? string.Empty];
-                    ThrowModuleError(errorMessage, errorDetails);
+                    ThrowModuleError(errorMessage, errorDetails, ErrorCategory.DatabaseInsertion);
 
                     if (noFilesFound == false)
                     {
@@ -428,7 +428,7 @@ namespace DataImportClient.Modules
                 {
                     string errorMessage = "Failed to delete the source file.";
                     string[] errorDetails = [exception.Message, exception.InnerException?.ToString() ?? string.Empty];
-                    ThrowModuleError(errorMessage, errorDetails);
+                    ThrowModuleError(errorMessage, errorDetails, ErrorCategory.FileDeletion);
                 }
 
                 ImportWorkerLog("Successfully deleted the source file.");
@@ -757,7 +757,7 @@ namespace DataImportClient.Modules
             _dateOfLastLogFileEntry = DateTime.Now.ToString("dd.MM.yyyy - HH:mm:ss");
         }
 
-        private void ThrowModuleError(string errorMessage, string[] errorDetails)
+        private void ThrowModuleError(string errorMessage, string[] errorDetails, ErrorCategory errorCategory)
         {
             ImportWorkerLog($"[ERROR] - {errorMessage}");
 
@@ -769,7 +769,7 @@ namespace DataImportClient.Modules
                 }
             }
 
-            MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, errorMessage, errorDetails[0]);
+            MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, errorMessage, errorDetails[0], errorCategory);
 
             State = ModuleState.Error;
             _errorCount++;
@@ -796,7 +796,7 @@ namespace DataImportClient.Modules
             {
                 string errorMessage = "Failed to move the current source file.";
                 string[] errorDetails = [exception.Message, exception.InnerException?.ToString() ?? string.Empty, $"File path: {_currentSourceFilePath}."];
-                ThrowModuleError(errorMessage, errorDetails);
+                ThrowModuleError(errorMessage, errorDetails, ErrorCategory.FileMoving);
             }
         }
     }

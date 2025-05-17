@@ -11,22 +11,37 @@ using Newtonsoft.Json.Linq;
 
 namespace DataImportClient.Modules
 {
+    enum ErrorCategory
+    {
+        ConfigurationFetching,
+        IntegerParsing,
+        SourceFileDataFetching,
+        DatabaseInsertion,
+        FileDeletion,
+        FileMoving,
+        SourceFileDataMinimizing,
+        ApiDataFetching,
+        Miscellaneous,
+    }
+
     struct ErrorCacheEntry
     {
+        internal Guid errorId;
         internal DateTime dateTime;
         internal int processId;
         internal string section;
-        internal string error;
-        internal string detail;
+        internal string errorMessage;
+        internal string errorDetail;
+        internal ErrorCategory errorCategory;
 
         internal readonly string ToMinimalistic()
         {
-            return $"[{section}] - {error}";
+            return $"[{section}] - {errorMessage}";
         }
 
         internal readonly string ToDetailed()
         {
-            return $"[{dateTime:yyyy-MM-dd HH:mm:ss}] - [ProcessId: {processId} | Section: {section}] - {error} {detail}";
+            return $"[{dateTime:yyyy-MM-dd HH:mm:ss}] - [ProcessId: {processId} | Section: {section}] - {errorMessage} {errorDetail}";
         }
     }
 
@@ -38,21 +53,23 @@ namespace DataImportClient.Modules
 
         private static readonly ApplicationSettings.Paths _appPaths = new();
 
-        const int maxEntries = 30;
+        const int maxEntries = 50;
         private readonly object _entriesLock = new();
         private readonly List<ErrorCacheEntry> _entries = [];
 
-        
 
-        internal void AddEntry(string errorSection, string errorMessage, string detailedError)
+
+        internal void AddEntry(string errorSection, string errorMessage, string errorDetail, ErrorCategory errorCategory)
         {
             ErrorCacheEntry entry = new()
             {
+                errorId = Guid.NewGuid(),
                 dateTime = DateTime.Now,
                 processId = Environment.ProcessId,
                 section = errorSection,
-                error = errorMessage,
-                detail = detailedError
+                errorMessage = errorMessage,
+                errorDetail = errorDetail,
+                errorCategory = errorCategory
             };
 
 
@@ -67,12 +84,6 @@ namespace DataImportClient.Modules
                 _entries.Add(entry);
             }
 
-
-
-            if (_entries.Count != 1 && _entries.Count % 10 != 0)
-            {
-                return;
-            }
 
 
             string emailSubject = "Errors at DataImport";
