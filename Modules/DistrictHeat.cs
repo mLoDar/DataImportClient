@@ -599,7 +599,7 @@ namespace DataImportClient.Modules
 
             List<string> finalSourceFileData = [];
 
-            for (int i = 0; i < sourceFileData.Length; i++)
+            for (int i = 0; i < sourceFileData.Length - 1; i++)
             {
                 string currentRow = sourceFileData[i];
                 currentRow = RegexPatterns.AllWhitespaces().Replace(currentRow, string.Empty);

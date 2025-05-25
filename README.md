@@ -8,6 +8,11 @@
 
 ---
 
+Note: If you search for a version which works with the legacy database which was a base for this project, I need to refer you to [this](https://github.com/DigitalHtlFootprint/DataImportClientLegacy) fork.
+This repository only works with its own [DatabaseSetup.sql](/readme-files/DatabaseSetup.sql).
+
+---
+
 <br>
 
 `DataImportClient` is a console based application, which allows to import data from various sources into a SQL database.
