@@ -1053,7 +1053,18 @@ namespace DataImportClient.Modules
                 }
             }
 
-            MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, errorMessage, errorDetails[0], errorCategory);
+            string firstErrorDetail;
+
+            if (errorDetails.Length > 0)
+            {
+                firstErrorDetail = errorDetails[0];
+            }
+            else
+            {
+                firstErrorDetail = "There were no details for this error specified.";
+            }
+
+            MainMenu._sectionMiscellaneous.errorCache.AddEntry(_currentSection, errorMessage, firstErrorDetail, errorCategory);
 
             State = ModuleState.Error;
             _errorCount++;
