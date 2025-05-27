@@ -225,7 +225,6 @@ namespace DataImportClient
                         ["emailRecipients"] = new JArray()
                         {
                             "example1@email.com",
-                            "example2@email.com",
                         },
                     };
 

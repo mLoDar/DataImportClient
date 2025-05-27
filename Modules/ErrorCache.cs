@@ -53,15 +53,19 @@ namespace DataImportClient.Modules
 
         private static readonly ApplicationSettings.Paths _appPaths = new();
 
-        const int maxEntries = 50;
+        private const int _maxEntries = 50;
         private readonly object _entriesLock = new();
-        private readonly List<ErrorCacheEntry> _entries = [];
+        private readonly List<ErrorCacheEntry> _errorCache = [];
+        private readonly static List<ErrorCacheEntry> _errorAlerted = [];
+
+        private const int _emailAlertsCooldownSeconds = 300;
+        private static long _lastEmailAlertUnixSeconds = 0;
 
 
 
         internal void AddEntry(string errorSection, string errorMessage, string errorDetail, ErrorCategory errorCategory)
         {
-            ErrorCacheEntry entry = new()
+            ErrorCacheEntry newEntry = new()
             {
                 errorId = Guid.NewGuid(),
                 dateTime = DateTime.Now,
@@ -76,20 +80,35 @@ namespace DataImportClient.Modules
 
             lock (_entriesLock)
             {
-                if (_entries.Count + 1 > maxEntries)
+                if (_errorCache.Count + 1 > _maxEntries)
                 {
-                    _entries.RemoveAt(0);
+                    _errorCache.RemoveAt(0);
                 }
 
-                _entries.Add(entry);
-            }
+                _errorCache.Add(newEntry);
+
+                ActivityLogger.Log(_currentSection, "Received a new error for the error cache. Checking if the application needs to send an email alert.");
+                ActivityLogger.Log(_currentSection, $"ErrorCategory: {newEntry.errorCategory} | ErrorModule: {newEntry.section}", true);
+
+                bool sendAlertEmail = ShouldSendEmailAlert(newEntry);
+
+                if (sendAlertEmail == false)
+                {
+                    ActivityLogger.Log(_currentSection, "Suppressed sending of a new email alert.");
+                    return;
+                }
+
+                ActivityLogger.Log(_currentSection, "Sending a new email alert for the current error.");
 
 
 
-            string emailSubject = "Errors at DataImport";
-            string emailBody = $"There {(_entries.Count > 1 ? "are" : "is")} currently {_entries.Count} error{(_entries.Count > 1 ? string.Empty : "s")} which need{(_entries.Count > 1 ? "s" : string.Empty)} a manual review.";
+                string emailSubject = "Fehler beim Daten-Import";
+                string emailBody = $"Ein neuer Fehler des Typs '{newEntry.errorCategory}' ist im Bereich '{newEntry.section}' aufgetreten." +
+                             $"\r\nDerzeit {(_errorCache.Count > 1 ? "sind" : "ist")} {_errorCache.Count} Fehler im Fehlerspeicher des DataImportClient." +
+                         $"\r\n\r\nGenauere Details werden in dem Modul-Spezifischem Logfile aufgelistet." + 
+                             $"\r\nBenachrichtigungen dieser Art können im DataImportClient unter dem Menüpunkt 'Miscellaneous' deaktiviert werden.";
 
-            Task.Run(async () =>
+                Task.Run(async () =>
                 {
                     JObject savedConfiguration;
 
@@ -136,14 +155,17 @@ namespace DataImportClient.Modules
                         ActivityLogger.Log(_currentSection, "Please check the error logs above to fix this error.", true);
                     }
                 }
-            );
+                );
+
+                _errorAlerted.Add(newEntry);
+            }
         }
 
         internal void RemoveSectionFromCache(string errorSection)
         {
             List<ErrorCacheEntry> entriesForRemoval = [];
 
-            foreach (ErrorCacheEntry entry in _entries)
+            foreach (ErrorCacheEntry entry in _errorCache)
             {
                 if (entry.section.Equals(errorSection))
                 {
@@ -153,15 +175,22 @@ namespace DataImportClient.Modules
 
             foreach (ErrorCacheEntry entry in entriesForRemoval)
             {
-                _entries.Remove(entry);
+                _errorCache.Remove(entry);
             }
+
+            foreach (ErrorCacheEntry entry in entriesForRemoval)
+            {
+                _errorAlerted.Remove(entry);
+            }
+
+            ActivityLogger.Log(_currentSection, $"Removed all error for the section '{errorSection}' from the error cache!");
         }
 
         internal void DisplayMinimalistic()
         {
             int cacheViewStartIndex = 0;
 
-            if (_entries.Count <= 0)
+            if (_errorCache.Count <= 0)
             {
                 ActivityLogger.Log(_currentSection, "The error cache currently does not hold any entries.");
 
@@ -174,7 +203,7 @@ namespace DataImportClient.Modules
 
 
             ActivityLogger.Log(_currentSection, "Displaying a minimal error cache, waiting for return signal.");
-            ActivityLogger.Log(_currentSection, $"The error cache currently holds {(_entries.Count > 1 ? "1 entry" : $"{_entries.Count} entries")}.");
+            ActivityLogger.Log(_currentSection, $"The error cache currently holds {(_errorCache.Count > 1 ? "1 entry" : $"{_errorCache.Count} entries")}.");
 
 
 
@@ -203,11 +232,11 @@ namespace DataImportClient.Modules
             int scrollBarHelper = 0;
             int errorsDisplayedAtOnce = 10;
 
-            var (scrollBarStart, scrollBarEnd) = GetScrollbarRange(_entries.Count, errorsDisplayedAtOnce, cacheViewStartIndex);
+            var (scrollBarStart, scrollBarEnd) = GetScrollbarRange(_errorCache.Count, errorsDisplayedAtOnce, cacheViewStartIndex);
 
-            for (int currentErrorIndex = cacheViewStartIndex; currentErrorIndex < cacheViewStartIndex + errorsDisplayedAtOnce && currentErrorIndex < _entries.Count; currentErrorIndex++)
+            for (int currentErrorIndex = cacheViewStartIndex; currentErrorIndex < cacheViewStartIndex + errorsDisplayedAtOnce && currentErrorIndex < _errorCache.Count; currentErrorIndex++)
             {
-                string currentError = _entries[currentErrorIndex].ToMinimalistic();
+                string currentError = _errorCache[currentErrorIndex].ToMinimalistic();
 
                 if (currentError.Length > maxErrorLength)
                 {
@@ -242,7 +271,7 @@ namespace DataImportClient.Modules
             switch (pressedKey)
             {
                 case ConsoleKey.DownArrow:
-                    if (cacheViewStartIndex + 1 <= _entries.Count - errorsDisplayedAtOnce)
+                    if (cacheViewStartIndex + 1 <= _errorCache.Count - errorsDisplayedAtOnce)
                     {
                         cacheViewStartIndex += 1;
                     }
@@ -274,7 +303,7 @@ namespace DataImportClient.Modules
 
         internal async Task DisplayDetailed()
         {
-            if (_entries.Count <= 0)
+            if (_errorCache.Count <= 0)
             {
                 ActivityLogger.Log(_currentSection, "The error cache currently does not hold any entries.");
 
@@ -293,12 +322,12 @@ namespace DataImportClient.Modules
             List<string> errorCacheEntries = [];
 
             DateTime currentTime = DateTime.UtcNow;
-            long unixTime = ((DateTimeOffset)currentTime).ToUnixTimeSeconds();
+            long unixTimeSeconds = ((DateTimeOffset)currentTime).ToUnixTimeSeconds();
 
-            string exportFileName = Path.Combine(_appPaths.clientFolder, $"errorCacheExport-{unixTime}.txt");
+            string exportFileName = Path.Combine(_appPaths.clientFolder, $"errorCacheExport-{unixTimeSeconds}.txt");
 
 
-            foreach (ErrorCacheEntry entry in _entries)
+            foreach (ErrorCacheEntry entry in _errorCache)
             {
                 errorCacheEntries.Add(entry.ToDetailed());
             }
@@ -391,6 +420,36 @@ namespace DataImportClient.Modules
             int scrollBarEnd = scrollBarStart + scrollBarHeight;
 
             return (scrollBarStart, scrollBarEnd);
+        }
+
+        private static bool ShouldSendEmailAlert(ErrorCacheEntry newEntry)
+        {
+            DateTime currentTime = DateTime.UtcNow;
+            long unixTimeSeconds = ((DateTimeOffset)currentTime).ToUnixTimeSeconds();
+
+            if (unixTimeSeconds - _lastEmailAlertUnixSeconds <= _emailAlertsCooldownSeconds)
+            {
+                ActivityLogger.Log(_currentSection, $"[WARNING] - Last email was sent less than {_emailAlertsCooldownSeconds} seconds ago.", true);
+                return false;
+            }
+
+            foreach (ErrorCacheEntry alertedEntry in _errorAlerted)
+            {
+                bool matchingCategory = alertedEntry.errorCategory == newEntry.errorCategory;
+                bool matchingSection = alertedEntry.section == newEntry.section;
+
+                if (matchingCategory && matchingSection)
+                {
+                    ActivityLogger.Log(_currentSection, $"[WARNING] - This specific category/module configuration was already sent as an email alert.", true);
+                    return false;
+                }
+            }
+
+            ActivityLogger.Log(_currentSection, $"This specific category/module configuration was not sent previously as an email alert.", true);
+
+            _lastEmailAlertUnixSeconds = unixTimeSeconds;
+
+            return true;
         }
     }
 }
