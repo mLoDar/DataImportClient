@@ -5,7 +5,7 @@
         internal class Runtime
         {
             internal readonly string appVersion = "v1.0.0";
-            internal readonly string appRelease = "TBA";
+            internal readonly string appRelease = "22.05.2025";
         }
 
         internal class Paths
